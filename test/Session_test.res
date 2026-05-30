@@ -22,26 +22,35 @@ test("builds a cwd-restoring command for Claude sessions", () => {
 
 test("shell-quotes cwd paths containing single quotes", () => {
   let session = {...baseSession, cwd: Some("/tmp/that's fine")}
-  equal(
-    Session.copyCommand(session),
-    "cd '/tmp/that'\\''s fine' && claude --resume abc-123",
-  )
+  equal(Session.copyCommand(session), "cd '/tmp/that'\\''s fine' && claude --resume abc-123")
 })
 
 test("shell-quotes cwd paths containing shell metacharacters", () => {
   let session = {...baseSession, cwd: Some("/tmp/demo$branch")}
-  equal(
-    Session.copyCommand(session),
-    "cd '/tmp/demo$branch' && claude --resume abc-123",
-  )
+  equal(Session.copyCommand(session), "cd '/tmp/demo$branch' && claude --resume abc-123")
 })
 
 test("uses the correct resume command for each supported tool", () => {
-  equal(Session.copyCommand({...baseSession, tool: Codex}), "cd /Users/helge/code/demo && codex resume abc-123")
-  equal(Session.copyCommand({...baseSession, tool: Junie}), "cd /Users/helge/code/demo && junie --resume --session-id abc-123")
-  equal(Session.copyCommand({...baseSession, tool: Pi}), "cd /Users/helge/code/demo && pi --session abc-123")
-  equal(Session.copyCommand({...baseSession, tool: Amp}), "cd /Users/helge/code/demo && amp threads continue abc-123")
-  equal(Session.copyCommand({...baseSession, tool: OpenCode}), "cd /Users/helge/code/demo && opencode --session abc-123")
+  equal(
+    Session.copyCommand({...baseSession, tool: Codex}),
+    "cd /Users/helge/code/demo && codex resume abc-123",
+  )
+  equal(
+    Session.copyCommand({...baseSession, tool: Junie}),
+    "cd /Users/helge/code/demo && junie --resume --session-id abc-123",
+  )
+  equal(
+    Session.copyCommand({...baseSession, tool: Pi}),
+    "cd /Users/helge/code/demo && pi --session abc-123",
+  )
+  equal(
+    Session.copyCommand({...baseSession, tool: Amp}),
+    "cd /Users/helge/code/demo && amp threads continue abc-123",
+  )
+  equal(
+    Session.copyCommand({...baseSession, tool: OpenCode}),
+    "cd /Users/helge/code/demo && opencode --session abc-123",
+  )
 })
 
 test("filters sessions by title, tool, cwd, id, and preview text", () => {

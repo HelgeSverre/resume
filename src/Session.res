@@ -112,15 +112,15 @@ let pad2 = value =>
 
 let exactTimestamp = timestampMs => {
   let date = makeDate(timestampMs)
-  Int.toString(getFullYear(date))
-  ++ "-"
-  ++ pad2(getMonth(date) + 1)
-  ++ "-"
-  ++ pad2(getDate(date))
-  ++ " "
-  ++ pad2(getHours(date))
-  ++ ":"
-  ++ pad2(getMinutes(date))
-  ++ ":"
-  ++ pad2(getSeconds(date))
+  Int.toString(getFullYear(date)) ++
+  "-" ++
+  pad2(getMonth(date) + 1) ++
+  "-" ++
+  pad2(getDate(date)) ++
+  " " ++
+  pad2(getHours(date)) ++
+  ":" ++
+  pad2(getMinutes(date)) ++
+  ":" ++
+  pad2(getSeconds(date))
 }
