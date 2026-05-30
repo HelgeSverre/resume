@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# ReScript build output
+lib/
+.bsb.lock
+*.mjs.map
+
+# Runtime / cache
+.cache/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp

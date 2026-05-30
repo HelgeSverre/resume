@@ -1,0 +1,22 @@
+{
+  "name": "resume",
+  "namespace": true,
+  "sources": [
+    {
+      "dir": "src"
+    },
+    {
+      "dir": "test",
+      "type": "dev"
+    }
+  ],
+  "package-specs": {
+    "module": "esmodule",
+    "in-source": false
+  },
+  "suffix": ".mjs",
+  "dependencies": ["@rescript/core"],
+  "warnings": {
+    "number": "-44"
+  }
+}
