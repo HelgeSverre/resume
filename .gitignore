@@ -18,3 +18,9 @@ npm-debug.log*
 .idea/
 .vscode/
 *.swp
+
+# Demo: generated fixture sessions (rebuilt by demo/make-fixtures.mjs).
+# The tape, generator, and rendered resume.gif are committed; the fixtures
+# and any extracted frames are not.
+demo/home/
+demo/_frames/

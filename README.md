@@ -1,6 +1,8 @@
-# resume
+# `--resume`
 
 Search and resume local coding-agent sessions across many tools — after a crash, a closed terminal, or a context switch.
+
+![resume in action — searching, filtering by tool, toggling timestamps, and printing a cd-restoring resume command](demo/resume.gif)
 
 `resume` scans the session histories that your coding agents leave on disk, normalizes them into one searchable list, and prints a `cd`-restoring command you can run to jump straight back into the right conversation in the right directory.
 
@@ -78,3 +80,13 @@ npm run format:check  # verify formatting in CI
 ```
 
 The codebase is a mix of ReScript (`src/*.res`, pure logic such as session shaping and the resume-command builder) and hand-written JavaScript (`src/adapters.mjs`, `src/tui.mjs`, `bin/resume.js`, for filesystem scanning and the terminal UI). ReScript files are formatted with `rescript format`; the JavaScript is formatted with [oxfmt](https://www.npmjs.com/package/oxfmt).
+
+## Demo GIF
+
+`demo/resume.gif` is recorded with [VHS](https://github.com/charmbracelet/vhs). It runs against a throwaway tree of synthetic sessions (one per supported tool) so the recording never shows real history. To regenerate it:
+
+```sh
+vhs demo/resume.tape   # writes demo/resume.gif
+```
+
+`demo/resume.tape` builds the fixtures first (`demo/make-fixtures.mjs`, into the gitignored `demo/home/`) and points `HOME` at them. The search terms in the tape deliberately avoid the letter `t`, since the picker reserves `t` for the timestamp-column toggle.
