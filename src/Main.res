@@ -19,7 +19,10 @@ Usage:
 Keys:
   type search text    Filter by tool, title, cwd, id, or preview
   up/down             Move selection
-  t                   Toggle exact timestamp column
+  tab                 Expand / collapse the preview panel
+  ctrl-a              Cycle the agent filter (all -> one tool -> ...)
+  ctrl-t              Toggle exact timestamp column
+  ctrl-u              Clear the search
   enter               Copy resume command to clipboard, print it, and exit
   esc or ctrl-c       Exit
 `)

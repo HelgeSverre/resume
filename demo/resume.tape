@@ -7,8 +7,7 @@
 # sessions (demo/make-fixtures.mjs) so the demo shows all nine supported tools
 # without touching any real session history.
 #
-# The CLI flags run first, in a clean shell; the interactive picker comes last
-# and ends on the printed/copied resume command (its selection is the finale).
+# The interactive picker leads (it's the star), and the CLI flags follow.
 #
 # Picker keys shown: type-to-filter, ↑/↓ move, Tab expand preview,
 # Ctrl+A cycle agent, Ctrl+T toggle exact timestamps, Ctrl+U clear,
@@ -26,8 +25,12 @@ Set TypingSpeed 90ms
 Set Framerate 30
 
 # --- hidden setup: build clean fixture data, put real `resume` on PATH ---
+# This environment exports NO_COLOR / FORCE_COLOR=0; clear them so the picker
+# renders its blue branding and cyan legend in the recording.
 Hide
 Type 'export PATH="/Users/helge/.nvm/versions/node/v22.22.3/bin:$PATH"'
+Enter
+Type 'unset NO_COLOR CLICOLOR CLICOLOR_FORCE FORCE_COLOR; export TERM=xterm-256color'
 Enter
 Type 'cd /Users/helge/code/resume'
 Enter
@@ -40,33 +43,6 @@ Enter
 Type 'clear'
 Enter
 Show
-
-# --- the help screen: usage and keybindings ---
-Type "resume --help"
-Sleep 600ms
-Enter
-Sleep 2.6s
-Type "clear"
-Enter
-Sleep 300ms
-
-# --- export every normalized session as JSON ---
-Type "resume --json | head -n 16"
-Sleep 500ms
-Enter
-Sleep 2.4s
-Type "clear"
-Enter
-Sleep 300ms
-
-# --- copy a resume command straight to the clipboard by id prefix ---
-Type "resume --copy 7f3a9c21"
-Sleep 500ms
-Enter
-Sleep 2.2s
-Type "clear"
-Enter
-Sleep 400ms
 
 # --- open the searchable picker: every tool in one list ---
 Type "resume"
@@ -112,6 +88,33 @@ Sleep 1.6s
 Down
 Sleep 800ms
 
-# --- Enter copies the cwd-restoring resume command and prints it (finale) ---
+# --- Enter copies the cwd-restoring resume command and prints it ---
+Enter
+Sleep 2.6s
+Type "clear"
+Enter
+Sleep 400ms
+
+# --- the help screen: usage and keybindings ---
+Type "resume --help"
+Sleep 500ms
+Enter
+Sleep 2.6s
+Type "clear"
+Enter
+Sleep 300ms
+
+# --- export every normalized session as JSON ---
+Type "resume --json | head -n 16"
+Sleep 500ms
+Enter
+Sleep 2.6s
+Type "clear"
+Enter
+Sleep 300ms
+
+# --- copy a resume command straight to the clipboard by id prefix (finale) ---
+Type "resume --copy 7f3a9c21"
+Sleep 500ms
 Enter
 Sleep 3.0s
