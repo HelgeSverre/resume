@@ -32,14 +32,14 @@ testAsync("collects normalized sessions from supported local agent stores", asyn
   await writeJsonl(
     NodePath.joinMany([home, ".codex", "session_index.jsonl"]),
     [
-      JSON.parseExn(`{"id":"codex-1","thread_name":"Codex title","updated_at":"2026-05-30T05:00:00.000Z"}`),
+      JSON.parseOrThrow(`{"id":"codex-1","thread_name":"Codex title","updated_at":"2026-05-30T05:00:00.000Z"}`),
     ],
   )
   await writeJsonl(
     NodePath.joinMany([home, ".codex", "sessions", "2026", "05", "30", "rollout-codex-1.jsonl"]),
     [
-      JSON.parseExn(`{"timestamp":"2026-05-30T04:59:00.000Z","type":"session_meta","payload":{"id":"codex-1","cwd":"/repo/codex"}}`),
-      JSON.parseExn(`{"timestamp":"2026-05-30T05:00:00.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"codex preview"}]}}`),
+      JSON.parseOrThrow(`{"timestamp":"2026-05-30T04:59:00.000Z","type":"session_meta","payload":{"id":"codex-1","cwd":"/repo/codex"}}`),
+      JSON.parseOrThrow(`{"timestamp":"2026-05-30T05:00:00.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"codex preview"}]}}`),
     ],
   )
 
@@ -51,9 +51,9 @@ testAsync("collects normalized sessions from supported local agent stores", asyn
   await writeJsonl(
     NodePath.joinMany([home, ".claude", "projects", "-repo-claude", "claude-1.jsonl"]),
     [
-      JSON.parseExn(`{"type":"ai-title","sessionId":"claude-1","aiTitle":"Claude title"}`),
-      JSON.parseExn(`{"type":"user","sessionId":"claude-1","timestamp":"2026-05-30T04:00:00.000Z","cwd":"/repo/claude","message":{"role":"user","content":"claude preview"}}`),
-      JSON.parseExn(`{"type":"assistant","sessionId":"claude-1","timestamp":"2026-05-30T04:01:00.000Z","cwd":"/repo/claude","message":{"role":"assistant","content":[{"type":"text","text":"answer"}]}}`),
+      JSON.parseOrThrow(`{"type":"ai-title","sessionId":"claude-1","aiTitle":"Claude title"}`),
+      JSON.parseOrThrow(`{"type":"user","sessionId":"claude-1","timestamp":"2026-05-30T04:00:00.000Z","cwd":"/repo/claude","message":{"role":"user","content":"claude preview"}}`),
+      JSON.parseOrThrow(`{"type":"assistant","sessionId":"claude-1","timestamp":"2026-05-30T04:01:00.000Z","cwd":"/repo/claude","message":{"role":"assistant","content":[{"type":"text","text":"answer"}]}}`),
     ],
   )
 
@@ -65,14 +65,14 @@ testAsync("collects normalized sessions from supported local agent stores", asyn
   await writeJsonl(
     NodePath.joinMany([home, ".junie", "sessions", "index.jsonl"]),
     [
-      JSON.parseExn(`{"sessionId":"junie-1","taskName":"Junie title","projectDir":"/repo/junie","createdAt":1770000000000,"updatedAt":1770000100000}`),
+      JSON.parseOrThrow(`{"sessionId":"junie-1","taskName":"Junie title","projectDir":"/repo/junie","createdAt":1770000000000,"updatedAt":1770000100000}`),
     ],
   )
   await writeJsonl(
     NodePath.joinMany([home, ".junie", "sessions", "junie-1", "events.jsonl"]),
     [
-      JSON.parseExn(`{"kind":"UserPromptEvent","prompt":"junie preview"}`),
-      JSON.parseExn(`{"kind":"TaskState","text":"working"}`),
+      JSON.parseOrThrow(`{"kind":"UserPromptEvent","prompt":"junie preview"}`),
+      JSON.parseOrThrow(`{"kind":"TaskState","text":"working"}`),
     ],
   )
 
@@ -91,8 +91,8 @@ testAsync("collects normalized sessions from supported local agent stores", asyn
       "2026-05-30T01-00-00-000Z_pi-1.jsonl",
     ]),
     [
-      JSON.parseExn(`{"type":"session","id":"pi-1","timestamp":"2026-05-30T01:00:00.000Z","cwd":"/repo/pi"}`),
-      JSON.parseExn(`{"type":"message","id":"m1","timestamp":"2026-05-30T01:01:00.000Z","message":{"role":"user","content":[{"type":"text","text":"pi preview"}]}}`),
+      JSON.parseOrThrow(`{"type":"session","id":"pi-1","timestamp":"2026-05-30T01:00:00.000Z","cwd":"/repo/pi"}`),
+      JSON.parseOrThrow(`{"type":"message","id":"m1","timestamp":"2026-05-30T01:01:00.000Z","message":{"role":"user","content":[{"type":"text","text":"pi preview"}]}}`),
     ],
   )
 
@@ -158,7 +158,11 @@ testAsync("collects normalized sessions from supported local agent stores", asyn
   )
   await writeJsonl(
     NodePath.joinMany([home, ".kimi-code", "session_index.jsonl"]),
-    [JSON.parseExn(`{"sessionId":"ses_kimi-1","sessionDir":"${kimiDir}","workDir":"/repo/kimi"}`)],
+    [
+      JSON.parseOrThrow(
+        `{"sessionId":"ses_kimi-1","sessionDir":"${kimiDir}","workDir":"/repo/kimi"}`,
+      ),
+    ],
   )
   await NodeFs.writeFile(
     NodePath.join(kimiDir, "state.json"),
@@ -167,9 +171,9 @@ testAsync("collects normalized sessions from supported local agent stores", asyn
   await writeJsonl(
     NodePath.joinMany([kimiDir, "agents", "main", "wire.jsonl"]),
     [
-      JSON.parseExn(`{"type":"metadata","protocol_version":"1.2"}`),
-      JSON.parseExn(`{"type":"context.append_message","message":{"role":"user","content":[{"type":"text","text":"kimi preview"}]}}`),
-      JSON.parseExn(`{"type":"context.append_message","message":{"role":"assistant","content":[{"type":"text","text":"ok"}]}}`),
+      JSON.parseOrThrow(`{"type":"metadata","protocol_version":"1.2"}`),
+      JSON.parseOrThrow(`{"type":"context.append_message","message":{"role":"user","content":[{"type":"text","text":"kimi preview"}]}}`),
+      JSON.parseOrThrow(`{"type":"context.append_message","message":{"role":"assistant","content":[{"type":"text","text":"ok"}]}}`),
     ],
   )
 
@@ -181,9 +185,9 @@ testAsync("collects normalized sessions from supported local agent stores", asyn
   await writeJsonl(
     NodePath.joinMany([home, ".copilot", "session-state", "copilot-1", "events.jsonl"]),
     [
-      JSON.parseExn(`{"type":"session.start","data":{"sessionId":"copilot-1","context":{"cwd":"/repo/copilot"}},"timestamp":"2026-05-30T03:00:00.000Z"}`),
-      JSON.parseExn(`{"type":"user.message","data":{"content":"copilot title"},"timestamp":"2026-05-30T03:01:00.000Z"}`),
-      JSON.parseExn(`{"type":"assistant.message","data":{"content":"copilot preview"},"timestamp":"2026-05-30T03:02:00.000Z"}`),
+      JSON.parseOrThrow(`{"type":"session.start","data":{"sessionId":"copilot-1","context":{"cwd":"/repo/copilot"}},"timestamp":"2026-05-30T03:00:00.000Z"}`),
+      JSON.parseOrThrow(`{"type":"user.message","data":{"content":"copilot title"},"timestamp":"2026-05-30T03:01:00.000Z"}`),
+      JSON.parseOrThrow(`{"type":"assistant.message","data":{"content":"copilot preview"},"timestamp":"2026-05-30T03:02:00.000Z"}`),
     ],
   )
 

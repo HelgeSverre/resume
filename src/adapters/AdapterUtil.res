@@ -38,7 +38,7 @@ let readJsonl = async path => {
   lines->Array.forEach(line => {
     if line->String.trim != "" {
       try {
-        rows->Array.push(JSON.parseExn(line))
+        rows->Array.push(JSON.parseOrThrow(line))
       } catch {
       | _ => ()
       }
@@ -51,7 +51,7 @@ let firstParsedLine = (lines, predicate) => {
   lines->Array.findMap(line => {
     if predicate(line) {
       try {
-        Some(JSON.parseExn(line))
+        Some(JSON.parseOrThrow(line))
       } catch {
       | _ => None
       }
@@ -67,7 +67,7 @@ let lastParsedLine = (lines, predicate) => {
   ->Array.findMap(line => {
     if predicate(line) {
       try {
-        Some(JSON.parseExn(line))
+        Some(JSON.parseOrThrow(line))
       } catch {
       | _ => None
       }
@@ -91,7 +91,7 @@ let lastTimestampFromLines = lines =>
   ->Array.toReversed
   ->Array.findMap(line =>
     if line->String.includes("\"timestamp\"") {
-      switch JSON.parseExn(line) {
+      switch JSON.parseOrThrow(line) {
       | json =>
         let ts = JsonUtil.toMs(
           json->JSON.Decode.object->Option.flatMap(obj => obj->Dict.get("timestamp")),

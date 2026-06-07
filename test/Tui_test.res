@@ -11,6 +11,12 @@ let stripAnsi = text => {
   text->String.replaceRegExp(/\\x1b\\[[0-9;]*m/g, "")
 }
 
+// Fully strip every escape sequence (colors, inverse, cursor moves, erases) so
+// that String.length reflects the visible column width. Built from the real ESC
+// character because ReScript regex literals escape backslashes differently.
+let ansiRe = RegExp.fromString(String.fromCharCode(27) ++ "\\[[0-9;?]*[a-zA-Z]", ~flags="g")
+let stripAll = text => text->String.replaceRegExp(ansiRe, "")
+
 let baseSession = {
   Session.id: "abc",
   tool: Claude,
@@ -79,12 +85,14 @@ let ampSession = {...baseSession, id: "a1", tool: Amp, title: "Investigate flaky
 
 let mkState = sessions => {
   Tui.sessions,
+  tools: Tui.distinctTools(sessions),
   query: "",
   selected: 0,
   offset: 0,
   notice: "",
   showExactTime: false,
   expanded: false,
+  agentFilter: None,
 }
 
 test("keyOfEvent treats a bare 't' as searchable text, ctrl+t as toggle", () => {
@@ -96,6 +104,35 @@ test("keyOfEvent treats a bare 't' as searchable text, ctrl+t as toggle", () => 
 
 test("keyOfEvent maps tab to ToggleExpand", () => {
   equal(Tui.keyOfEvent("\t", {name: "tab"}), Tui.ToggleExpand)
+})
+
+test("keyOfEvent maps ctrl+a to CycleAgent", () => {
+  equal(Tui.keyOfEvent("", {ctrl: true, name: "a"}), Tui.CycleAgent)
+  // a bare 'a' is still searchable text
+  deepEqual(Tui.keyOfEvent("a", {}), Tui.Insert("a"))
+})
+
+test("CycleAgent cycles all → each present agent → back to all", () => {
+  let visible = [claudeSession, codexSession, ampSession]
+  let state = mkState(visible)
+  equal(state.agentFilter, None) // all
+  // tools are derived in canonical order: Claude, Codex, Amp
+  let _ = Tui.update(state, Tui.CycleAgent, ~visible, ~rowsHeight=10)
+  equal(state.agentFilter, Some(Session.Claude))
+  let _ = Tui.update(state, Tui.CycleAgent, ~visible, ~rowsHeight=10)
+  equal(state.agentFilter, Some(Session.Codex))
+  let _ = Tui.update(state, Tui.CycleAgent, ~visible, ~rowsHeight=10)
+  equal(state.agentFilter, Some(Session.Amp))
+  let _ = Tui.update(state, Tui.CycleAgent, ~visible, ~rowsHeight=10)
+  equal(state.agentFilter, None) // wrapped back to all
+})
+
+test("an active agent filter restricts the visible rows", () => {
+  let state = mkState([claudeSession, codexSession, ampSession])
+  state.agentFilter = Some(Session.Codex)
+  let lines = Tui.view(state, ~metrics={width: 120, height: 40, nowMs: 0.})->Array.map(stripAll)
+  equal(lines->Array.some(line => line->String.includes("Wire up billing endpoint")), true)
+  equal(lines->Array.some(line => line->String.includes("Refactor parser module")), false)
 })
 
 test("update ToggleExpand flips the expanded flag", () => {
@@ -162,12 +199,15 @@ test("view shows an empty-state message when nothing matches", () => {
   equal(lines->Array.some(line => line->String.includes("No sessions match your search.")), true)
 })
 
-test("view pads the row region so the details box stays pinned to the bottom", () => {
+test("view pads the row region so the details box stays pinned above the footer", () => {
   let state = mkState([claudeSession])
-  let lines = Tui.view(state, ~metrics={width: 120, height: 40, nowMs: 0.})
-  // Only one matching result, yet the box should always be the final lines.
-  let last = lines->Array.get(Array.length(lines) - 1)->Option.getOr("")->stripAnsi
-  equal(last->String.startsWith("└"), true)
+  let lines = Tui.view(state, ~metrics={width: 120, height: 40, nowMs: 0.})->Array.map(stripAll)
+  // The legend is the final line; a blank spacer sits above it; the box bottom
+  // border is the line above that.
+  let n = Array.length(lines)
+  equal(lines->Array.get(n - 1)->Option.getOr("")->String.includes("resume"), true) // legend
+  equal(lines->Array.get(n - 2)->Option.getOr("")->String.trim, "") // spacer
+  equal(lines->Array.get(n - 3)->Option.getOr("")->String.startsWith("└"), true) // box bottom
   // Layout is deterministic for a fixed height regardless of result count.
   let manyState = mkState([claudeSession, codexSession, ampSession])
   let manyLines = Tui.view(manyState, ~metrics={width: 120, height: 40, nowMs: 0.})
@@ -188,15 +228,6 @@ test("expanded view keeps the same total height but shows more preview lines", (
     expandedLines->Array.filter(line => line->stripAnsi->String.startsWith("│"))->Array.length
   equal(expandedBox > collapsedBox, true)
 })
-
-// Fully strip every escape sequence (colors, inverse, cursor moves, erases) so
-// that String.length reflects the visible column width. Built from the real ESC
-// character because ReScript regex literals escape backslashes differently.
-let ansiRe = RegExp.fromStringWithFlags(
-  String.fromCharCode(27) ++ "\\[[0-9;?]*[a-zA-Z]",
-  ~flags="g",
-)
-let stripAll = text => text->String.replaceRegExp(ansiRe, "")
 
 test("no rendered line ever exceeds the terminal width", () => {
   let state = mkState([claudeSession, codexSession, ampSession])

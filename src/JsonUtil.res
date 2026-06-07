@@ -25,7 +25,7 @@ let toMs = value => {
   }
 }
 
-let rec textFromContent = content => {
+let textFromContent = content => {
   switch content {
   | JSON.String(s) => s
   | JSON.Array(arr) =>
@@ -58,7 +58,7 @@ let compact = (text, ~fallback="Untitled session") => {
   | None => ""
   }
 
-  let value = value->String.replaceRegExp(/\\s+/g, " ")
+  let value = value->String.replaceRegExp(/\s+/g, " ")
   let value = value->String.trim
 
   if value->String.length == 0 {

@@ -33,7 +33,7 @@ let loadCache = async home => {
     switch await readText(path) {
     | Some(content) =>
       try {
-        let data = JSON.parseExn(content)
+        let data = JSON.parseOrThrow(content)
         switch JSON.Decode.object(data) {
         | Some(obj) =>
           switch obj->Dict.get("version")->Option.flatMap(JSON.Decode.string) {
@@ -141,7 +141,7 @@ let readJson = async path => {
   switch await readText(path) {
   | Some(content) =>
     try {
-      Some(JSON.parseExn(content))
+      Some(JSON.parseOrThrow(content))
     } catch {
     | _ => None
     }

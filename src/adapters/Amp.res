@@ -2,7 +2,7 @@
 // scanning text lines for fields.
 let parseAmpFile = async path => {
   let content = await NodeFs.readFile(path, "utf8")
-  let root = switch JSON.parseExn(content) {
+  let root = switch JSON.parseOrThrow(content) {
   | json => json->JSON.Decode.object
   | exception _ => None
   }

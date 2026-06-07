@@ -6,6 +6,8 @@ type clipboard
 external clipboard: clipboard = "default"
 @send external writeClipboard: (clipboard, string) => promise<unit> = "write"
 
+let copyToClipboard = command => clipboard->writeClipboard(command)
+
 let help = () => {
   Console.log(`resume
 
@@ -18,7 +20,7 @@ Keys:
   type search text    Filter by tool, title, cwd, id, or preview
   up/down             Move selection
   t                   Toggle exact timestamp column
-  enter               Print resume command and exit
+  enter               Copy resume command to clipboard, print it, and exit
   esc or ctrl-c       Exit
 `)
 }
@@ -52,7 +54,7 @@ let main = async () => {
           switch findSession(sessions, id) {
           | Some(session) =>
             let command = Session.copyCommand(session)
-            await clipboard->writeClipboard(command)
+            await copyToClipboard(command)
             Console.log(command)
           | None =>
             Console.error(`No session found matching ${id}`)
@@ -70,7 +72,7 @@ let main = async () => {
           )
         })
       } else {
-        await Tui.runPicker(sessions)
+        await Tui.runPicker(~copyToClipboard, sessions)
       }
     }
   }

@@ -19,6 +19,7 @@ type key =
   | ClearQuery
   | ToggleTimestamp
   | ToggleExpand
+  | CycleAgent
   | Backspace
   | Insert(string)
   | Ignore
@@ -37,12 +38,16 @@ type metrics = {
 
 type pickerState = {
   mutable sessions: array<Session.t>,
+  // Distinct tools present in `sessions`, in canonical order; used by ctrl+a.
+  tools: array<Session.tool>,
   mutable query: string,
   mutable selected: int,
   mutable offset: int,
   mutable notice: string,
   mutable showExactTime: bool,
   mutable expanded: bool,
+  // None = show every agent; Some(tool) = filter to a single agent (ctrl+a).
+  mutable agentFilter: option<Session.tool>,
 }
 
 // Computed screen layout for a given terminal height and expand state.
@@ -50,6 +55,7 @@ type layout = {
   rowsHeight: int,
   previewLines: int,
   detailsHeight: int,
+  showLegend: bool,
 }
 
 type box<'a> = {mutable value: 'a}
@@ -102,6 +108,15 @@ let color = (code, text) => {
     text
   }
 }
+
+// Subtle palette for branding and the bottom legend (256-color codes).
+let brandPrimary = 67 // muted blue
+let brandVersion = 74 // brighter blue
+let legendKeyColor = 117 // cyan
+let legendTextColor = 245 // light grey
+let placeholderColor = 240 // faint grey
+
+let version = "v0.1.0"
 
 let toolColor = (tool, text) => {
   let code = switch tool {
@@ -158,7 +173,7 @@ let clipTail = (text, width) => {
   } else if width == 1 {
     "…"
   } else {
-    "…" ++ text->String.sliceToEnd(~start=text->String.length - (width - 1))
+    "…" ++ text->String.slice(~start=text->String.length - (width - 1))
   }
 }
 
@@ -250,12 +265,27 @@ let cwdLabel = cwd => {
   | Some(cwd) =>
     let home = env->Dict.get("HOME")->Option.getOr("")
     if home != "" && cwd->String.startsWith(home) {
-      "~" ++ cwd->String.sliceToEnd(~start=home->String.length)
+      "~" ++ cwd->String.slice(~start=home->String.length)
     } else {
       cwd
     }
   | None => ""
   }
+}
+
+// Canonical agent order for the ctrl+a cycle (only those present are kept).
+let canonicalToolOrder = [Claude, Codex, Amp, OpenCode, Kimi, Copilot, Junie, Pi, Antigravity]
+
+let distinctTools = sessions =>
+  canonicalToolOrder->Array.filter(tool => sessions->Array.some(s => s.Session.tool == tool))
+
+// The visible sessions for the current agent filter + search query.
+let filteredFor = (state: pickerState) => {
+  let base = switch state.agentFilter {
+  | None => state.sessions
+  | Some(tool) => state.sessions->Array.filter(s => s.Session.tool == tool)
+  }
+  SessionList.visible(~query=state.query, base)
 }
 
 // Number of fixed "chrome" lines around the preview inside the details box when
@@ -266,18 +296,26 @@ let detailsMinimal = 5
 let minRows = 3
 let headerLines = 5
 
+// Footer = one blank spacer line + the legend line, pinned to the very bottom.
+let footerLines = 2
+
 // Compute a screen layout that always fits within `height`. The details box is
-// pinned to the bottom; the row region is padded to a fixed height so nothing
+// pinned above the footer; the row region is padded to a fixed height so nothing
 // floats as the result count changes. Preview is clamped to 2 lines unless the
-// user expands it, and the box shrinks (or disappears) on short terminals.
+// user expands it, and the box (then the legend) drop away on short terminals.
 //
-// Invariant: headerLines + rowsHeight + (box ? 1 gap : 0) + detailsHeight <= height.
+// Invariant: headerLines + rowsHeight + (box ? 1 gap + detailsHeight : 0)
+//            + (legend ? footerLines : 0) <= height.
 let layoutFor = (~height, ~expanded) => {
   let h = intMax(1, height)
   let gapLines = 1
   let safety = 1
+  // Only show the legend when there's room for the header, the footer and at
+  // least one row of results.
+  let showLegend = h >= headerLines + footerLines + minRows
+  let footer = showLegend ? footerLines : 0
   // Vertical budget shared by the row region, the gap line and the details box.
-  let body = intMax(1, h - headerLines - gapLines - safety)
+  let body = intMax(1, h - headerLines - footer - gapLines - safety)
 
   let desiredPreview = if expanded {
     16
@@ -296,7 +334,7 @@ let layoutFor = (~height, ~expanded) => {
     0 // terminal too short for any box
   }
   let rowsHeight = intMax(1, body - detailsHeight)
-  {rowsHeight, previewLines, detailsHeight}
+  {rowsHeight, previewLines, detailsHeight, showLegend}
 }
 
 // Responsive table columns: always sum (with single-space gaps) to <= width.
@@ -387,6 +425,8 @@ let keyOfEvent = (str, event: keyEvent) => {
     ClearQuery
   } else if ctrl && name == "t" {
     ToggleTimestamp
+  } else if ctrl && name == "a" {
+    CycleAgent
   } else if name == "tab" {
     ToggleExpand
   } else if str != "" && !ctrl && !meta && str >= " " {
@@ -452,6 +492,16 @@ let update = (state: pickerState, key, ~visible: array<Session.t>, ~rowsHeight) 
   | ToggleExpand =>
     state.expanded = !state.expanded
     Continue
+  | CycleAgent =>
+    // Cycle: all → first agent → … → last agent → all.
+    state.agentFilter = switch state.agentFilter {
+    | None => state.tools->Array.get(0)
+    | Some(current) =>
+      let index = state.tools->Array.findIndex(tool => tool == current)
+      state.tools->Array.get(index + 1)
+    }
+    resetToTop()
+    Continue
   | Insert(str) =>
     state.query = state.query ++ str
     resetToTop()
@@ -460,22 +510,96 @@ let update = (state: pickerState, key, ~visible: array<Session.t>, ~rowsHeight) 
   }
 }
 
-// The status/help line, made responsive: shows the full hint when it fits, a
-// short hint when it half-fits, otherwise just the (tail-clipped) query.
-let statusLine = (~query, ~expanded, ~width) => {
-  let prefix = "Search: " ++ query
-  let tabHint = expanded ? "tab collapse" : "tab expand"
-  let helpFull =
-    "enter print · ↑/↓ move · " ++ tabHint ++ " · ctrl+t time · esc quit · ctrl+u clear"
-  let helpShort = "↑/↓ move · enter print · esc quit"
-  let sep = "  "
-  let fits = help => prefix->String.length + sep->String.length + help->String.length <= width
-  if fits(helpFull) {
-    prefix ++ sep ++ dim(helpFull)
-  } else if fits(helpShort) {
-    prefix ++ sep ++ dim(helpShort)
+// Top branding line: dimmed-blue "resume v0.1.0", then the active agent filter
+// and any transient notice.
+let brandingLine = (state: pickerState, ~width) => {
+  let agent = switch state.agentFilter {
+  | None => dim("all agents")
+  | Some(tool) => toolColor(tool, Session.toolName(tool))
+  }
+  let plain =
+    "resume " ++
+    version ++
+    "  ·  agent: " ++
+    switch state.agentFilter {
+    | None => "all agents"
+    | Some(tool) => Session.toolName(tool)
+    } ++ (state.notice != "" ? "  " ++ state.notice : "")
+  if plain->String.length <= width {
+    color(brandPrimary, "resume ") ++
+    color(brandVersion, version) ++
+    dim("  ·  agent: ") ++
+    agent ++ (state.notice != "" ? "  " ++ dim(state.notice) : "")
   } else {
-    clipTail(prefix, width)
+    clip(color(brandPrimary, "resume ") ++ color(brandVersion, version), width)
+  }
+}
+
+// Search line: dim label, then either the query or a faint placeholder.
+let searchLine = (~query, ~width) => {
+  let label = "Search: "
+  let avail = intMax(1, width - label->String.length)
+  if query == "" {
+    dim(label) ++ color(placeholderColor, clip("write to filter", avail))
+  } else {
+    dim(label) ++ clipTail(query, avail)
+  }
+}
+
+// Bottom legend. Each item is a cyan key + a lighter-grey explainer, separated
+// by faint bullets. Three width tiers (descriptive → terse → minimal) keep it on
+// one line; below that it is clipped.
+let legendKey = key => color(legendKeyColor, key)
+let legendText = text => color(legendTextColor, text)
+
+let legendItems = [
+  ("enter", "resume session"),
+  ("↑/↓", "move"),
+  ("tab", "expand"),
+  ("^a", "cycle agent"),
+  ("^t", "time"),
+  ("^u", "clear"),
+  ("esc", "quit"),
+]
+let legendTerse = [
+  ("enter", "resume"),
+  ("↑/↓", "move"),
+  ("tab", "expand"),
+  ("^a", "agent"),
+  ("^t", "time"),
+  ("^u", "clear"),
+  ("esc", "quit"),
+]
+let legendMinimal = [("↑/↓", "move"), ("enter", "resume"), ("^a", "agent"), ("esc", "quit")]
+
+let legendLine = (~width) => {
+  let build = (items, ~sep) => {
+    let plain = items->Array.map(((k, t)) => k ++ " " ++ t)->Array.join(sep)
+    if plain->String.length <= width {
+      Some(
+        items
+        ->Array.map(((k, t)) => legendKey(k) ++ " " ++ legendText(t))
+        ->Array.join(color(placeholderColor, sep)),
+      )
+    } else {
+      None
+    }
+  }
+  switch build(legendItems, ~sep="   ·   ") {
+  | Some(line) => line
+  | None =>
+    switch build(legendTerse, ~sep="  ·  ") {
+    | Some(line) => line
+    | None =>
+      switch build(legendMinimal, ~sep="  ·  ") {
+      | Some(line) => line
+      | None =>
+        color(
+          legendTextColor,
+          clip(legendMinimal->Array.map(((k, t)) => k ++ " " ++ t)->Array.join("  ·  "), width),
+        )
+      }
+    }
   }
 }
 
@@ -488,7 +612,7 @@ let view = (state: pickerState, ~metrics) => {
   let rowsHeight = layout.rowsHeight
   let cols = tableColumns(~width, ~showExactTime=state.showExactTime)
 
-  let visible = SessionList.visible(~query=state.query, state.sessions)
+  let visible = filteredFor(state)
   let lastIndex = intMax(0, visible->Array.length - 1)
   let selected = intMin(intMax(0, state.selected), lastIndex)
   let offset = intMin(intMax(0, state.offset), lastIndex)
@@ -496,18 +620,9 @@ let view = (state: pickerState, ~metrics) => {
 
   let out = []
 
-  // Header.
-  let titlePlain =
-    "resume search coding-agent sessions" ++ (state.notice != "" ? " " ++ state.notice : "")
-  out->Array.push(
-    if titlePlain->String.length <= width {
-      "resume " ++
-      dim("search coding-agent sessions") ++ (state.notice != "" ? " " ++ state.notice : "")
-    } else {
-      clip("resume", width)
-    },
-  )
-  out->Array.push(statusLine(~query=state.query, ~expanded=state.expanded, ~width))
+  // Header: branding + search.
+  out->Array.push(brandingLine(state, ~width))
+  out->Array.push(searchLine(~query=state.query, ~width))
   out->Array.push("")
 
   // Column header + separator.
@@ -533,8 +648,12 @@ let view = (state: pickerState, ~metrics) => {
   out->Array.push("─"->String.repeat(intMin(width, sepWidth)))
 
   // Rows.
+  let emptyMessage = switch state.agentFilter {
+  | Some(tool) => "No " ++ Session.toolName(tool) ++ " sessions match your search."
+  | None => "No sessions match your search."
+  }
   let renderedRows = if shown->Array.length == 0 {
-    out->Array.push(dim(clip("No sessions match your search.", width)))
+    out->Array.push(dim(clip(emptyMessage, width)))
     1
   } else {
     shown->Array.forEachWithIndex((session, index) => {
@@ -576,7 +695,7 @@ let view = (state: pickerState, ~metrics) => {
     out->Array.push("")
   }
 
-  // Details box, pinned to the bottom (omitted on very short terminals).
+  // Details box, pinned above the footer (omitted on very short terminals).
   if layout.detailsHeight > 0 {
     out->Array.push("")
     switch visible->Array.get(selected) {
@@ -590,21 +709,31 @@ let view = (state: pickerState, ~metrics) => {
     | None => ()
     }
   }
+
+  // Footer: one blank spacer row, then the keybind legend pinned to the bottom.
+  if layout.showLegend {
+    out->Array.push("")
+    out->Array.push(legendLine(~width))
+  }
   out
 }
 
-let runPicker = async sessions => {
+// `copyToClipboard` is injected by the caller (Main owns the clipboardy FFI so
+// Tui stays free of that dependency and remains testable without a TTY).
+let runPicker = async (~copyToClipboard, sessions) => {
   if sessions->Array.length == 0 {
     Console.log("No resumable sessions found.")
   } else {
     let state = {
       sessions,
+      tools: distinctTools(sessions),
       query: "",
       selected: 0,
       offset: 0,
       notice: "",
       showExactTime: false,
       expanded: false,
+      agentFilter: None,
     }
 
     let input = stdin
@@ -625,7 +754,7 @@ let runPicker = async sessions => {
     let render = () => {
       let metrics = {width: stdout->columns, height: stdout->rows, nowMs: Date.now()}
       let layout = layoutFor(~height=metrics.height, ~expanded=state.expanded)
-      let visible = SessionList.visible(~query=state.query, state.sessions)
+      let visible = filteredFor(state)
       clampScroll(state, ~visibleLen=visible->Array.length, ~rowsHeight=layout.rowsHeight)
       // Build the whole frame and write it in one call. Each line is cleared to
       // end-of-line and the area below is cleared, so we overwrite in place
@@ -657,12 +786,23 @@ let runPicker = async sessions => {
 
       and onKeypress = (str: string, event: keyEvent) => {
         let layout = layoutFor(~height=stdout->rows, ~expanded=state.expanded)
-        let visible = SessionList.visible(~query=state.query, state.sessions)
+        let visible = filteredFor(state)
         switch update(state, keyOfEvent(str, event), ~visible, ~rowsHeight=layout.rowsHeight) {
         | Exit => cleanup()
         | Submit(session) =>
-          cleanup()
-          Console.log(selectedCommandOutput(session))
+          let command = selectedCommandOutput(session)
+          // Copy to the clipboard so it can be pasted directly, then restore the
+          // screen and print for `eval "$(resume)"`. We await the copy before
+          // resolving so the process doesn't exit before the write settles.
+          // Clipboard failures (e.g. headless) are ignored.
+          copyToClipboard(command)
+          ->Promise.catch(_ => Promise.resolve())
+          ->Promise.then(() => {
+            cleanup()
+            Console.log(command)
+            Promise.resolve()
+          })
+          ->ignore
         | Continue => render()
         }
       }

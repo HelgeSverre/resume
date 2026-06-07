@@ -103,8 +103,8 @@ test("round-trips a session with no cwd", () => {
 })
 
 test("decode rejects json missing required fields", () => {
-  equal(Session.decode(JSON.parseExn(`{"title":"x"}`)), None)
-  equal(Session.decode(JSON.parseExn(`{"id":"x","tool":"nope"}`)), None)
+  equal(Session.decode(JSON.parseOrThrow(`{"title":"x"}`)), None)
+  equal(Session.decode(JSON.parseOrThrow(`{"id":"x","tool":"nope"}`)), None)
 })
 
 test("toolFromName is the inverse of toolName for every tool", () => {
