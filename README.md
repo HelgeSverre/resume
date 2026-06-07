@@ -80,8 +80,7 @@ npm link      # exposes the `resume` binary (dist/resume.mjs)
 npm run build         # compile ReScript (src/*.res -> lib/)
 npm test              # build, then run the ReScript test suite
 npm run dist          # build + bundle to a single dist/resume.mjs
-npm run format        # format the demo JS sources with oxfmt
-npm run format:check  # verify formatting in CI
+npm run format        # format the ReScript sources with `rescript format`
 ```
 
 The application is written entirely in ReScript (`src/*.res`):
@@ -93,7 +92,7 @@ The application is written entirely in ReScript (`src/*.res`):
 - `src/node/*.res` — thin typed bindings to Node's `fs`, `path`, `process`, `readline`, and `url`.
 - `src/Main.res` — the CLI entry point.
 
-ReScript compiles to `lib/`, and [esbuild](https://esbuild.github.io/) bundles `lib/es6/src/Main.mjs` into the single executable `dist/resume.mjs` (with `clipboardy` kept external). ReScript files are formatted with `rescript format`; the demo's hand-written JS is formatted with [oxfmt](https://www.npmjs.com/package/oxfmt).
+ReScript compiles to `lib/`, and [esbuild](https://esbuild.github.io/) bundles `lib/es6/src/Main.mjs` into the single executable `dist/resume.mjs` (with `clipboardy` kept external). ReScript files are formatted with `rescript format`.
 
 ## Demo GIF
 
