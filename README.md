@@ -2,7 +2,7 @@
 
 Search and resume local coding-agent sessions across many tools — after a crash, a closed terminal, or a context switch.
 
-![resume in action — searching, filtering by tool, toggling timestamps, and printing a cd-restoring resume command](demo/resume.gif)
+![resume in action — searching, expanding the preview, cycling the agent filter, toggling timestamps, and copying a cd-restoring resume command](demo/resume.gif)
 
 `resume` scans the session histories that your coding agents leave on disk, normalizes them into one searchable list, and prints a `cd`-restoring command you can run to jump straight back into the right conversation in the right directory.
 
@@ -14,18 +14,20 @@ resume
 
 Type to search by tool, title, cwd, session id, or preview text.
 
-| Key              | Action                                       |
-| ---------------- | -------------------------------------------- |
-| type             | Filter by tool, title, cwd, id, or preview   |
-| `↑` / `↓`        | Move selection                               |
-| `PageUp/Down`    | Jump 10 rows                                 |
-| `t`              | Toggle an exact `yyyy-mm-dd hh:mm:ss` column |
-| `Backspace`      | Delete a search character                    |
-| `Ctrl+U`         | Clear the search                             |
-| `Enter`          | Print the resume command and exit            |
-| `Esc` / `Ctrl+C` | Quit without printing                        |
+| Key              | Action                                                       |
+| ---------------- | ------------------------------------------------------------ |
+| type             | Filter by tool, title, cwd, id, or preview                   |
+| `↑` / `↓`        | Move selection                                               |
+| `PageUp/Down`    | Jump 10 rows                                                 |
+| `Tab`            | Expand / collapse the preview panel                          |
+| `Ctrl+A`         | Cycle the agent filter (all → one tool → …)                  |
+| `Ctrl+T`         | Toggle an exact `yyyy-mm-dd hh:mm:ss` column                 |
+| `Backspace`      | Delete a search character                                    |
+| `Ctrl+U`         | Clear the search                                             |
+| `Enter`          | Copy the resume command to the clipboard, print it, and exit |
+| `Esc` / `Ctrl+C` | Quit without printing                                        |
 
-Pressing `Enter` prints a cwd-restoring command such as:
+Pressing `Enter` copies the command to your clipboard and prints a cwd-restoring command such as:
 
 ```sh
 cd /path/to/project && claude --resume SESSION_ID
@@ -101,4 +103,4 @@ ReScript compiles to `lib/`, and [esbuild](https://esbuild.github.io/) bundles `
 vhs demo/resume.tape   # writes demo/resume.gif
 ```
 
-`demo/resume.tape` builds the fixtures first (`demo/make-fixtures.mjs`, into the gitignored `demo/home/`) and points `HOME` at them. The search terms in the tape deliberately avoid the letter `t`, since the picker reserves `t` for the timestamp-column toggle.
+`demo/resume.tape` builds the fixtures first (`demo/make-fixtures.mjs`, into the gitignored `demo/home/`) and points `HOME` at them. The picker treats every printable character as filter input — toggles are bound to `Ctrl`-modified keys (`Ctrl+T` time, `Ctrl+A` agent cycle, `Ctrl+U` clear) and `Tab` expands the preview — so the demo's search terms can contain any letter.

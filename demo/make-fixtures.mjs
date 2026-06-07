@@ -7,9 +7,9 @@
 //
 // Each session's `cwd` is a fake `/Users/dev/code/<project>` path (independent
 // of where the fixture files live) so the printed resume commands stay short
-// and clean. Search-demo keywords avoid the letter "t" on purpose: the picker
-// binds `t` to the timestamp-column toggle, so a typed query can never contain
-// it (see src/tui.mjs).
+// and clean. The picker treats every printable character as filter input
+// (toggles are bound to Ctrl-modified keys), so demo search terms are free to
+// contain any letter.
 
 import { mkdir, rm, utimes, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
@@ -250,17 +250,20 @@ async function writeAmp(s) {
   const cwd = cwdOf(s);
   const updated = updatedOf(s);
   const created = updated - s.msgs * MIN;
+  // The Amp adapter reads message text from `content` (array of text blocks)
+  // and the timestamp from `meta.sentAt`.
   const messages = turns(s.msgs, s.preview, updated, (role, text, ts) => ({
     role,
-    text,
-    sentAt: ts,
+    content: [{ type: "text", text }],
+    meta: { sentAt: ts },
   }));
   const thread = {
     id: s.id,
     title: s.title,
     created,
     messages,
-    tree: { uri: `file://${cwd}` },
+    // The Amp adapter reads the working dir from env.initial.trees[0].uri.
+    env: { initial: { trees: [{ uri: `file://${cwd}` }] } },
   };
   const path = join(home, ".local", "share", "amp", "threads", `${s.id}.json`);
   await writeFileEnsured(path, JSON.stringify(thread, null, 2) + "\n");
