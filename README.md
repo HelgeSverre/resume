@@ -49,8 +49,11 @@ eval "$(resume)"
 | OpenCode    | `~/.local/share/opencode/storage`                                                 | `opencode --session <id>`          |
 | Junie       | `~/.junie/sessions`                                                               | `junie --resume --session-id <id>` |
 | Pi          | `~/.pi/agent/sessions`                                                            | `pi --session <id>`                |
+| Kimi        | `~/.kimi-code/session_index.jsonl`, `~/.kimi-code/sessions`                       | `kimi --session <id>`              |
+| Copilot     | `~/.copilot/session-state`                                                        | `copilot --resume <id>`            |
+| Antigravity | `~/.gemini/antigravity-cli/conversations`, `~/.gemini/antigravity-cli/brain`      | `agy --conversation <id>`          |
 
-When a session records its working directory, the printed command is prefixed with `cd <cwd> &&` so you land back in the project. Parsed sessions are cached in `~/.cache/resume/sessions-cache-v1.json`, keyed by file size and mtime, so repeat runs are fast.
+When a session records its working directory, the printed command is prefixed with `cd <cwd> &&` so you land back in the project. Parsed sessions are cached in `~/.cache/resume/sessions-cache-v2.json`, keyed by file size and mtime, so repeat runs are fast.
 
 ## Other commands
 
@@ -65,21 +68,30 @@ When stdout is not a TTY (e.g. piped), `resume` prints up to 50 sessions as tab-
 ## Build
 
 ```sh
-npm install
-npm run build
-npm link
+npm install   # also runs `npm run dist` via the prepare script
+npm link      # exposes the `resume` binary (dist/resume.mjs)
 ```
 
 ## Development
 
 ```sh
 npm run build         # compile ReScript (src/*.res -> lib/)
-npm test              # build, then run ReScript and JS tests
-npm run format        # format JS/.mjs sources with oxfmt
+npm test              # build, then run the ReScript test suite
+npm run dist          # build + bundle to a single dist/resume.mjs
+npm run format        # format the demo JS sources with oxfmt
 npm run format:check  # verify formatting in CI
 ```
 
-The codebase is a mix of ReScript (`src/*.res`, pure logic such as session shaping and the resume-command builder) and hand-written JavaScript (`src/adapters.mjs`, `src/tui.mjs`, `bin/resume.js`, for filesystem scanning and the terminal UI). ReScript files are formatted with `rescript format`; the JavaScript is formatted with [oxfmt](https://www.npmjs.com/package/oxfmt).
+The application is written entirely in ReScript (`src/*.res`):
+
+- `src/Session.res`, `src/SessionList.res` — the session model, resume-command builder, search, and JSON codecs.
+- `src/adapters/*.res` — one module per tool, plus shared `AdapterUtil`/`Codec` helpers; registered in `src/Adapters.res`.
+- `src/Cache.res` — the stat-keyed parsed-session cache, with explicit per-adapter encode/decode codecs.
+- `src/Tui.res` — a pure core (`update`, `view`, `keyOfEvent`) wrapped by a thin effectful picker shell, so layout and key handling are unit-tested without a TTY.
+- `src/node/*.res` — thin typed bindings to Node's `fs`, `path`, `process`, `readline`, and `url`.
+- `src/Main.res` — the CLI entry point.
+
+ReScript compiles to `lib/`, and [esbuild](https://esbuild.github.io/) bundles `lib/es6/src/Main.mjs` into the single executable `dist/resume.mjs` (with `clipboardy` kept external). ReScript files are formatted with `rescript format`; the demo's hand-written JS is formatted with [oxfmt](https://www.npmjs.com/package/oxfmt).
 
 ## Demo GIF
 

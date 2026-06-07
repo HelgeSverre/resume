@@ -1,4 +1,4 @@
-type tool = Claude | Codex | Junie | Pi | Amp | OpenCode
+type tool = Claude | Codex | Junie | Pi | Amp | OpenCode | Kimi | Copilot | Antigravity
 
 type t = {
   id: string,
@@ -26,6 +26,19 @@ type t = {
 
 let isSafeShellWord: string => bool = %raw(`value => /^[A-Za-z0-9_./:-]+$/.test(value)`)
 
+let toolToString = tool =>
+  switch tool {
+  | Claude => "Claude"
+  | Codex => "Codex"
+  | Junie => "Junie"
+  | Pi => "Pi"
+  | Amp => "Amp"
+  | OpenCode => "OpenCode"
+  | Kimi => "Kimi"
+  | Copilot => "Copilot"
+  | Antigravity => "Antigravity"
+  }
+
 let toolName = tool =>
   switch tool {
   | Claude => "claude"
@@ -34,6 +47,23 @@ let toolName = tool =>
   | Pi => "pi"
   | Amp => "amp"
   | OpenCode => "opencode"
+  | Kimi => "kimi"
+  | Copilot => "copilot"
+  | Antigravity => "antigravity"
+  }
+
+let toolFromName = name =>
+  switch name {
+  | "claude" => Some(Claude)
+  | "codex" => Some(Codex)
+  | "junie" => Some(Junie)
+  | "pi" => Some(Pi)
+  | "amp" => Some(Amp)
+  | "opencode" => Some(OpenCode)
+  | "kimi" => Some(Kimi)
+  | "copilot" => Some(Copilot)
+  | "antigravity" => Some(Antigravity)
+  | _ => None
   }
 
 let resumeCommand = session =>
@@ -44,6 +74,9 @@ let resumeCommand = session =>
   | Pi => "pi --session " ++ session.id
   | Amp => "amp threads continue " ++ session.id
   | OpenCode => "opencode --session " ++ session.id
+  | Kimi => "kimi --session " ++ session.id
+  | Copilot => "copilot --resume " ++ session.id
+  | Antigravity => "agy --conversation " ++ session.id
   }
 
 let shellQuote = value => {
@@ -124,3 +157,70 @@ let exactTimestamp = timestampMs => {
   ":" ++
   pad2(getSeconds(date))
 }
+
+let encodeTool = tool => JSON.Encode.string(toolName(tool))
+
+let decodeTool = json => json->JSON.Decode.string->Option.flatMap(toolFromName)
+
+let encode = (session: t): JSON.t =>
+  JSON.Encode.object(
+    Dict.fromArray([
+      ("id", JSON.Encode.string(session.id)),
+      ("tool", encodeTool(session.tool)),
+      ("title", JSON.Encode.string(session.title)),
+      ("messageCount", JSON.Encode.float(Int.toFloat(session.messageCount))),
+      ("updatedAtMs", JSON.Encode.float(session.updatedAtMs)),
+      (
+        "cwd",
+        switch session.cwd {
+        | Some(cwd) => JSON.Encode.string(cwd)
+        | None => JSON.Encode.null
+        },
+      ),
+      ("path", JSON.Encode.string(session.path)),
+      ("preview", JSON.Encode.string(session.preview)),
+    ]),
+  )
+
+let decode = (json: JSON.t): option<t> =>
+  switch JSON.Decode.object(json) {
+  | Some(obj) =>
+    switch (
+      obj->Dict.get("id")->Option.flatMap(JSON.Decode.string),
+      obj->Dict.get("tool")->Option.flatMap(decodeTool),
+    ) {
+    | (Some(id), Some(tool)) =>
+      Some({
+        id,
+        tool,
+        title: obj->Dict.get("title")->Option.flatMap(JSON.Decode.string)->Option.getOr(""),
+        messageCount: obj
+        ->Dict.get("messageCount")
+        ->Option.flatMap(JSON.Decode.float)
+        ->Option.getOr(0.0)
+        ->Float.toInt,
+        updatedAtMs: obj
+        ->Dict.get("updatedAtMs")
+        ->Option.flatMap(JSON.Decode.float)
+        ->Option.getOr(0.0),
+        cwd: obj->Dict.get("cwd")->Option.flatMap(JSON.Decode.string),
+        path: obj->Dict.get("path")->Option.flatMap(JSON.Decode.string)->Option.getOr(""),
+        preview: obj->Dict.get("preview")->Option.flatMap(JSON.Decode.string)->Option.getOr(""),
+      })
+    | _ => None
+    }
+  | None => None
+  }
+
+let encodeOption = value =>
+  switch value {
+  | Some(session) => encode(session)
+  | None => JSON.Encode.null
+  }
+
+let decodeOption = json =>
+  if json == JSON.Null {
+    Some(None)
+  } else {
+    decode(json)->Option.map(session => Some(session))
+  }

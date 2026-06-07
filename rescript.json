@@ -3,10 +3,15 @@
   "namespace": true,
   "sources": [
     {
-      "dir": "src"
+      "dir": "src",
+      "subdirs": true
     },
     {
       "dir": "test",
+      "type": "dev"
+    },
+    {
+      "dir": "demo",
       "type": "dev"
     }
   ],
@@ -15,7 +20,6 @@
     "in-source": false
   },
   "suffix": ".mjs",
-  "dependencies": ["@rescript/core"],
   "warnings": {
     "number": "-44"
   }

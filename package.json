@@ -3,27 +3,36 @@
   "version": "0.1.0",
   "private": true,
   "bin": {
-    "resume": "./bin/resume.js"
+    "resume": "./dist/resume.mjs"
   },
+  "files": [
+    "dist"
+  ],
   "type": "module",
   "scripts": {
     "build": "rescript",
     "clean": "rescript clean",
-    "test": "npm run build && node --test lib/es6/test/*.mjs test-js/*.test.mjs",
-    "start": "node bin/resume.js",
-    "format": "oxfmt",
-    "format:check": "oxfmt --check"
+    "bundle": "esbuild lib/es6/src/Main.mjs --bundle --platform=node --format=esm --target=node22 --external:clipboardy --outfile=dist/resume.mjs --banner:js='#!/usr/bin/env node' && chmod +x dist/resume.mjs",
+    "dist": "npm run build && npm run bundle",
+    "prepare": "npm run dist",
+    "test": "npm run build && node --test lib/es6/test/*.mjs",
+    "start": "node dist/resume.mjs",
+    "format": "rescript format --verbose"
   },
   "dependencies": {
     "@rescript/core": "^1.6.1",
+    "@rescript/language-server": "^1.72.0",
     "@rescript/runtime": "^12.3.0",
     "clipboardy": "^5.3.1"
   },
   "devDependencies": {
-    "oxfmt": "^0.52.0",
+    "esbuild": "^0.28.0",
     "rescript": "^12.3.0"
   },
   "engines": {
     "node": ">=22"
+  },
+  "allowScripts": {
+    "esbuild@0.28.0": true
   }
 }

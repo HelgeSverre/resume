@@ -1,5 +1,5 @@
 // Generates a clean, synthetic HOME tree of coding-agent sessions so the VHS
-// demo can showcase `resume` across all six supported tools without exposing
+// demo can showcase `resume` across all nine supported tools without exposing
 // any real session data. Timestamps are computed relative to "now" at run
 // time, so the picker always shows fresh, natural-looking ages in the GIF.
 //
@@ -64,6 +64,33 @@ const SESSIONS = [
     preview: "Generated a lunr search index across all markdown pages.",
     age: 66 * MIN,
     msgs: 7,
+  },
+  {
+    tool: "Kimi",
+    id: "ses_k1a2b3c4-0015-4abc-8def-aaaa00000015",
+    title: "Add session resume command",
+    project: "acme-cli",
+    preview: "Resume now restores the working dir for a chosen kimi session.",
+    age: 30 * MIN,
+    msgs: 12,
+  },
+  {
+    tool: "Copilot",
+    id: "cp00000a-1111-4222-8333-aaaa0000000a",
+    title: "Wire up OAuth device flow",
+    project: "acme-api",
+    preview: "Added device-code polling and stored the refresh token securely.",
+    age: 50 * MIN,
+    msgs: 9,
+  },
+  {
+    tool: "Antigravity",
+    id: "ag00000b-2222-4333-8444-aaaa0000000b",
+    title: "Refactor rendering pipeline",
+    project: "acme-web",
+    preview: "Split the renderer into layout and paint passes for clarity.",
+    age: 90 * MIN,
+    msgs: 0,
   },
   {
     tool: "Claude",
@@ -289,10 +316,7 @@ async function writeJunie(s, indexRows) {
     events.push({ kind: "TaskState", text: "running step " + (i + 1) });
   }
   events.push({ kind: "UserPromptEvent", presentablePrompt: s.preview });
-  await writeFileEnsured(
-    join(home, ".junie", "sessions", s.id, "events.jsonl"),
-    jsonl(events),
-  );
+  await writeFileEnsured(join(home, ".junie", "sessions", s.id, "events.jsonl"), jsonl(events));
   indexRows.push({
     sessionId: s.id,
     taskName: s.title,
@@ -316,11 +340,99 @@ async function writePi(s) {
   await writeFileEnsured(join(home, ".pi", "agent", "sessions", `${s.id}.jsonl`), jsonl(rows));
 }
 
+async function writeKimi(s, indexRows) {
+  const cwd = cwdOf(s);
+  const updated = updatedOf(s);
+  const sessionDir = join(home, ".kimi-code", "sessions", `wd_${s.project}`, s.id);
+  await writeFileEnsured(
+    join(sessionDir, "state.json"),
+    JSON.stringify(
+      {
+        title: s.title,
+        createdAt: iso(updated - s.msgs * MIN),
+        updatedAt: iso(updated),
+        lastPrompt: s.preview,
+      },
+      null,
+      2,
+    ),
+  );
+  const rows = turns(s.msgs, s.preview, updated, (role, text) => ({
+    type: "context.append_message",
+    message: { role, content: [{ type: "text", text }] },
+  }));
+  const wirePath = join(sessionDir, "agents", "main", "wire.jsonl");
+  await writeFileEnsured(wirePath, jsonl(rows));
+  // The Kimi adapter folds the wire-log mtime into updatedAtMs, so backdate it
+  // to the session's intended age (otherwise every Kimi session sorts as new).
+  const when = new Date(updated);
+  await utimes(wirePath, when, when);
+  indexRows.push({ sessionId: s.id, sessionDir, workDir: cwd });
+}
+
+async function writeCopilot(s) {
+  const cwd = cwdOf(s);
+  const updated = updatedOf(s);
+  // Copilot derives the title from the first user.message and the preview from
+  // the last message, so seed the first user turn with the title.
+  const rows = [
+    {
+      type: "session.start",
+      data: { sessionId: s.id, context: { cwd } },
+      timestamp: iso(updated - s.msgs * 1000),
+    },
+  ];
+  for (let i = 0; i < s.msgs; i += 1) {
+    const role = i % 2 === 0 ? "user" : "assistant";
+    const isLast = i === s.msgs - 1;
+    const text =
+      i === 0
+        ? s.title
+        : isLast
+          ? s.preview
+          : role === "user"
+            ? "Can you take a look at this?"
+            : "Done.";
+    rows.push({
+      type: `${role}.message`,
+      data: { content: text },
+      timestamp: iso(updated - (s.msgs - 1 - i) * 1000),
+    });
+  }
+  await writeFileEnsured(
+    join(home, ".copilot", "session-state", s.id, "events.jsonl"),
+    jsonl(rows),
+  );
+}
+
+async function writeAntigravity(s, cwdMap) {
+  const cwd = cwdOf(s);
+  const updated = updatedOf(s);
+  const root = join(home, ".gemini", "antigravity-cli");
+  const convPath = join(root, "conversations", `${s.id}.pb`);
+  await writeFileEnsured(convPath, "synthetic-protobuf-conversation");
+  await writeFileEnsured(
+    join(root, "brain", s.id, "task.md.metadata.json"),
+    JSON.stringify(
+      { artifactType: "ARTIFACT_TYPE_TASK", summary: s.preview, updatedAt: iso(updated) },
+      null,
+      2,
+    ),
+  );
+  // The Antigravity adapter folds the .pb mtime into updatedAtMs, so backdate it
+  // to the session's intended age (otherwise every conversation sorts as new).
+  const when = new Date(updated);
+  await utimes(convPath, when, when);
+  cwdMap[cwd] = s.id;
+}
+
 async function main() {
   await rm(home, { recursive: true, force: true });
 
   const codexIndex = [];
   const junieIndex = [];
+  const kimiIndex = [];
+  const antigravityCwd = {};
 
   for (const s of SESSIONS) {
     switch (s.tool) {
@@ -342,6 +454,15 @@ async function main() {
       case "Pi":
         await writePi(s);
         break;
+      case "Kimi":
+        await writeKimi(s, kimiIndex);
+        break;
+      case "Copilot":
+        await writeCopilot(s);
+        break;
+      case "Antigravity":
+        await writeAntigravity(s, antigravityCwd);
+        break;
       default:
         throw new Error(`unknown tool ${s.tool}`);
     }
@@ -349,6 +470,11 @@ async function main() {
 
   await writeFileEnsured(join(home, ".codex", "session_index.jsonl"), jsonl(codexIndex));
   await writeFileEnsured(join(home, ".junie", "sessions", "index.jsonl"), jsonl(junieIndex));
+  await writeFileEnsured(join(home, ".kimi-code", "session_index.jsonl"), jsonl(kimiIndex));
+  await writeFileEnsured(
+    join(home, ".gemini", "antigravity-cli", "cache", "last_conversations.json"),
+    JSON.stringify(antigravityCwd, null, 2),
+  );
 
   console.log(`wrote ${SESSIONS.length} sessions to ${home}`);
 }

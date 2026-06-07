@@ -24,3 +24,6 @@ npm-debug.log*
 # and any extracted frames are not.
 demo/home/
 demo/_frames/
+
+# Build output
+dist/
