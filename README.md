@@ -79,6 +79,7 @@ When a session records its working directory, the printed command is prefixed wi
 resume --json        # print normalized sessions as JSON
 resume --copy <id>   # copy the resume command for an exact or prefix session id to the clipboard
 resume --help        # show usage and keybindings
+resume --version     # print the version and exit
 ```
 
 When stdout is not a TTY (e.g. piped), `resume` prints up to 50 sessions as tab-separated `tool<TAB>id<TAB>title<TAB>command` rows instead of opening the picker.

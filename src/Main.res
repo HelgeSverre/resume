@@ -8,6 +8,24 @@ external clipboard: clipboard = "default"
 
 let copyToClipboard = command => clipboard->writeClipboard(command)
 
+// `import.meta.url` points at this module; in the shipped bundle that is
+// dist/resume.mjs, so package.json sits one directory up. Read it at runtime so
+// the version stays a single source of truth (package.json).
+let moduleUrl: string = %raw(`import.meta.url`)
+
+let readVersion = async () => {
+  try {
+    let pkgPath = NodePath.join(
+      NodePath.dirname(NodeUrl.fileURLToPath(moduleUrl)),
+      "../package.json",
+    )
+    let content = await NodeFs.readFile(pkgPath, "utf8")
+    JsonUtil.stringAt(JSON.parseOrThrow(content), ["version"])->Option.getOr("unknown")
+  } catch {
+  | _ => "unknown"
+  }
+}
+
 let findSession = (sessions, id) => {
   switch sessions->Array.find(session => session.id == id) {
   | Some(session) => Some(session)
@@ -38,6 +56,7 @@ let main = async () => {
     Console.error(message)
     exit(2)
   | Parsed(Help) => Console.log(Cli.usage)
+  | Parsed(Version) => Console.log(await readVersion())
   | Parsed(Json) =>
     let sessions = await loadSessions()
     Console.log(JSON.stringify(JSON.Encode.array(sessions->Array.map(Session.encode))))

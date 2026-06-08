@@ -5,6 +5,7 @@
 
 type command =
   | Help
+  | Version
   | Json
   | Copy(string)
   | Pick
@@ -20,6 +21,7 @@ Usage:
   resume --json       Print normalized sessions as JSON
   resume --copy <id>  Copy the resume command for a matching session id
   resume --help       Show this help
+  resume --version    Print the version and exit
 
 Keys:
   type search text    Filter by tool, title, cwd, id, or preview
@@ -33,12 +35,16 @@ Keys:
 `
 
 let isHelpFlag = arg => arg == "--help" || arg == "-h"
+let isVersionFlag = arg => arg == "--version" || arg == "-v"
 
 // Parse the arguments after `node script` (i.e. argv without the first two).
-// Precedence matches the historical behaviour: help > json > copy > pick.
+// Precedence: help > version > json > copy > pick. Help and version are global
+// early-return flags, so they win wherever they appear.
 let parse = (args: array<string>): t =>
   if args->Array.some(isHelpFlag) {
     Parsed(Help)
+  } else if args->Array.some(isVersionFlag) {
+    Parsed(Version)
   } else {
     let rec scan = (i, json, copy) =>
       switch args->Array.get(i) {

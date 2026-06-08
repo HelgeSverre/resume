@@ -14,6 +14,16 @@ test("recognizes --help and -h regardless of position", () => {
   deepEqual(Cli.parse(["--json", "-h"]), Parsed(Help))
 })
 
+test("recognizes --version and -v regardless of position", () => {
+  deepEqual(Cli.parse(["--version"]), Parsed(Version))
+  deepEqual(Cli.parse(["-v"]), Parsed(Version))
+  deepEqual(Cli.parse(["--json", "-v"]), Parsed(Version))
+})
+
+test("help takes precedence over version", () => {
+  deepEqual(Cli.parse(["--version", "--help"]), Parsed(Help))
+})
+
 test("parses --json", () => {
   deepEqual(Cli.parse(["--json"]), Parsed(Json))
 })
