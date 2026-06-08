@@ -27,3 +27,6 @@ demo/_frames/
 
 # Build output
 dist/
+
+# npm pack output
+*.tgz

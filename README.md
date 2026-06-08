@@ -1,10 +1,26 @@
 # `--resume`
 
+[![npm](https://img.shields.io/npm/v/@helgesverre/resume?color=cb3837&logo=npm)](https://www.npmjs.com/package/@helgesverre/resume)
+
 Search and resume local coding-agent sessions across many tools — after a crash, a closed terminal, or a context switch.
 
 ![resume in action — searching, expanding the preview, cycling the agent filter, toggling timestamps, and copying a cd-restoring resume command](demo/resume.gif)
 
 `resume` scans the session histories that your coding agents leave on disk, normalizes them into one searchable list, and prints a `cd`-restoring command you can run to jump straight back into the right conversation in the right directory.
+
+## Install
+
+```sh
+npm install -g @helgesverre/resume
+```
+
+Or run it without installing:
+
+```sh
+npx @helgesverre/resume
+```
+
+It ships as a single bundled binary; the only runtime dependency is [`clipboardy`](https://www.npmjs.com/package/clipboardy), and it requires Node.js 22 or newer.
 
 ## Usage
 
@@ -67,7 +83,7 @@ resume --help        # show usage and keybindings
 
 When stdout is not a TTY (e.g. piped), `resume` prints up to 50 sessions as tab-separated `tool<TAB>id<TAB>title<TAB>command` rows instead of opening the picker.
 
-## Build
+## Build from source
 
 ```sh
 npm install   # also runs `npm run dist` via the prepare script
@@ -87,10 +103,12 @@ The application is written entirely in ReScript (`src/*.res`):
 
 - `src/Session.res`, `src/SessionList.res` — the session model, resume-command builder, search, and JSON codecs.
 - `src/adapters/*.res` — one module per tool, plus shared `AdapterUtil`/`Codec` helpers; registered in `src/Adapters.res`.
+- `src/JsonUtil.res` — shared JSON decode helpers built on [`@glennsl/rescript-json-combinators`](https://github.com/glennsl/rescript-json-combinators), used by the adapters and the session codec.
 - `src/Cache.res` — the stat-keyed parsed-session cache, with explicit per-adapter encode/decode codecs.
 - `src/Tui.res` — a pure core (`update`, `view`, `keyOfEvent`) wrapped by a thin effectful picker shell, so layout and key handling are unit-tested without a TTY.
+- `src/Cli.res` — typed parsing of argv into a single command, unit-tested without spawning the process.
 - `src/node/*.res` — thin typed bindings to Node's `fs`, `path`, `process`, `readline`, and `url`.
-- `src/Main.res` — the CLI entry point.
+- `src/Main.res` — the CLI entry point that dispatches the parsed command.
 
 ReScript compiles to `lib/`, and [esbuild](https://esbuild.github.io/) bundles `lib/es6/src/Main.mjs` into the single executable `dist/resume.mjs` (with `clipboardy` kept external). ReScript files are formatted with `rescript format`.
 
