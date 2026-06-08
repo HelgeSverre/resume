@@ -1,6 +1,9 @@
 # `--resume`
 
-[![npm](https://img.shields.io/npm/v/@helgesverre/resume?color=cb3837&logo=npm)](https://www.npmjs.com/package/@helgesverre/resume)
+[![npm version](https://img.shields.io/npm/v/@helgesverre/resume?logo=npm&color=cb3837)](https://www.npmjs.com/package/@helgesverre/resume)
+[![npm downloads](https://img.shields.io/npm/dm/@helgesverre/resume?logo=npm&color=cb3837)](https://www.npmjs.com/package/@helgesverre/resume)
+[![node](https://img.shields.io/node/v/@helgesverre/resume?logo=nodedotjs&color=339933)](https://www.npmjs.com/package/@helgesverre/resume)
+[![license](https://img.shields.io/npm/l/@helgesverre/resume?color=blue)](LICENSE)
 
 Search and resume local coding-agent sessions across many tools — after a crash, a closed terminal, or a context switch.
 
