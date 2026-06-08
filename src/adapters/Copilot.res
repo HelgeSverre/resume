@@ -5,17 +5,7 @@ let parseCopilotFile = async path => {
   let startRow = AdapterUtil.firstParsedLine(lines, line =>
     JsonUtil.hasJsonField(line, "type", "session.start")
   )
-  let cwd = switch startRow
-  ->Option.flatMap(JSON.Decode.object)
-  ->Option.flatMap(obj => obj->Dict.get("data"))
-  ->Option.flatMap(JSON.Decode.object)
-  ->Option.flatMap(obj => obj->Dict.get("context"))
-  ->Option.flatMap(JSON.Decode.object)
-  ->Option.flatMap(obj => obj->Dict.get("cwd"))
-  ->Option.flatMap(JSON.Decode.string) {
-  | Some(cwd) => Some(cwd)
-  | None => None
-  }
+  let cwd = startRow->Option.flatMap(j => JsonUtil.stringAt(j, ["data", "context", "cwd"]))
 
   let isUser = line => JsonUtil.hasJsonField(line, "type", "user.message")
   let isMessage = line => isUser(line) || JsonUtil.hasJsonField(line, "type", "assistant.message")
@@ -23,23 +13,8 @@ let parseCopilotFile = async path => {
   let firstUser = AdapterUtil.firstParsedLine(lines, isUser)
   let lastMessage = AdapterUtil.lastParsedLine(lines, isMessage)
 
-  let titleText = switch firstUser
-  ->Option.flatMap(JSON.Decode.object)
-  ->Option.flatMap(obj => obj->Dict.get("data"))
-  ->Option.flatMap(JSON.Decode.object)
-  ->Option.flatMap(obj => obj->Dict.get("content")) {
-  | Some(content) => JsonUtil.textFromContent(content)
-  | None => ""
-  }
-
-  let previewText = switch lastMessage
-  ->Option.flatMap(JSON.Decode.object)
-  ->Option.flatMap(obj => obj->Dict.get("data"))
-  ->Option.flatMap(JSON.Decode.object)
-  ->Option.flatMap(obj => obj->Dict.get("content")) {
-  | Some(content) => JsonUtil.textFromContent(content)
-  | None => ""
-  }
+  let titleText = firstUser->Option.mapOr("", j => JsonUtil.textAt(j, ["data", "content"]))
+  let previewText = lastMessage->Option.mapOr("", j => JsonUtil.textAt(j, ["data", "content"]))
 
   let title = JsonUtil.compact(Some(titleText), ~fallback="")
   let preview = JsonUtil.compact(Some(previewText), ~fallback="")

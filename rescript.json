@@ -1,6 +1,7 @@
 {
   "name": "@helgesverre/resume",
   "namespace": true,
+  "dependencies": ["@glennsl/rescript-json-combinators"],
   "sources": [
     {
       "dir": "src",

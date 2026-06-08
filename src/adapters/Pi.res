@@ -4,12 +4,8 @@ let parsePiFile = async path => {
   let headerRow = AdapterUtil.firstParsedLine(lines, line =>
     JsonUtil.hasJsonField(line, "type", "session")
   )
-  let header = switch headerRow->Option.flatMap(JSON.Decode.object) {
-  | Some(obj) => obj
-  | None => Dict.make()
-  }
 
-  let id = switch header->Dict.get("id")->Option.flatMap(JSON.Decode.string) {
+  let id = switch headerRow->Option.flatMap(j => JsonUtil.stringAt(j, ["id"])) {
   | Some(id) => id
   | None => {
       let base = NodePath.basename(path, ".jsonl")
@@ -24,20 +20,9 @@ let parsePiFile = async path => {
     JsonUtil.hasJsonField(line, "type", "message") && AdapterUtil.isUserOrAssistantLine(line)
 
   let previewRow = AdapterUtil.lastParsedLine(lines, isMessageLine)
-  let previewText = switch previewRow
-  ->Option.flatMap(JSON.Decode.object)
-  ->Option.flatMap(obj => obj->Dict.get("message"))
-  ->Option.flatMap(JSON.Decode.object)
-  ->Option.flatMap(obj => obj->Dict.get("content")) {
-  | Some(content) => JsonUtil.textFromContent(content)
-  | None => ""
-  }
+  let previewText = previewRow->Option.mapOr("", j => JsonUtil.textAt(j, ["message", "content"]))
 
-  let headerTs = switch header->Dict.get("timestamp") {
-  | Some(JSON.String(s)) => JsonUtil.toMs(Some(JSON.Encode.string(s)))
-  | Some(JSON.Number(n)) => n
-  | _ => 0.0
-  }
+  let headerTs = headerRow->Option.mapOr(0.0, j => JsonUtil.msAt(j, ["timestamp"]))
 
   {
     Session.id,
@@ -45,7 +30,7 @@ let parsePiFile = async path => {
     title: JsonUtil.compact(Some(previewText), ~fallback=id),
     messageCount: AdapterUtil.countLines(lines, isMessageLine),
     updatedAtMs: Math.max(headerTs, AdapterUtil.lastTimestampFromLines(lines)),
-    cwd: header->Dict.get("cwd")->Option.flatMap(JSON.Decode.string),
+    cwd: headerRow->Option.flatMap(j => JsonUtil.stringAt(j, ["cwd"])),
     path,
     preview: previewText,
   }

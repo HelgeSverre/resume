@@ -160,7 +160,15 @@ let exactTimestamp = timestampMs => {
 
 let encodeTool = tool => JSON.Encode.string(toolName(tool))
 
-let decodeTool = json => json->JSON.Decode.string->Option.flatMap(toolFromName)
+module D = JsonCombinators.Json.Decode
+
+// Decode a tool from its cli name, failing the whole decode on an unknown name.
+let toolDecoder = D.string->D.flatMap(name =>
+  switch toolFromName(name) {
+  | Some(tool) => D.custom(_ => tool)
+  | None => D.custom(json => D.Error.expected("a known tool name", json))
+  }
+)
 
 let encode = (session: t): JSON.t =>
   JSON.Encode.object(
@@ -182,35 +190,19 @@ let encode = (session: t): JSON.t =>
     ]),
   )
 
-let decode = (json: JSON.t): option<t> =>
-  switch JSON.Decode.object(json) {
-  | Some(obj) =>
-    switch (
-      obj->Dict.get("id")->Option.flatMap(JSON.Decode.string),
-      obj->Dict.get("tool")->Option.flatMap(decodeTool),
-    ) {
-    | (Some(id), Some(tool)) =>
-      Some({
-        id,
-        tool,
-        title: obj->Dict.get("title")->Option.flatMap(JSON.Decode.string)->Option.getOr(""),
-        messageCount: obj
-        ->Dict.get("messageCount")
-        ->Option.flatMap(JSON.Decode.float)
-        ->Option.getOr(0.0)
-        ->Float.toInt,
-        updatedAtMs: obj
-        ->Dict.get("updatedAtMs")
-        ->Option.flatMap(JSON.Decode.float)
-        ->Option.getOr(0.0),
-        cwd: obj->Dict.get("cwd")->Option.flatMap(JSON.Decode.string),
-        path: obj->Dict.get("path")->Option.flatMap(JSON.Decode.string)->Option.getOr(""),
-        preview: obj->Dict.get("preview")->Option.flatMap(JSON.Decode.string)->Option.getOr(""),
-      })
-    | _ => None
-    }
-  | None => None
-  }
+let decoder = D.object(field => {
+  id: field.required("id", D.string),
+  tool: field.required("tool", toolDecoder),
+  title: field.optional("title", D.string)->Option.getOr(""),
+  messageCount: field.optional("messageCount", D.float)->Option.mapOr(0, Float.toInt),
+  updatedAtMs: field.optional("updatedAtMs", D.float)->Option.getOr(0.0),
+  // `option` so an explicit `cwd: null` decodes to None (optional alone rejects null).
+  cwd: field.optional("cwd", D.option(D.string))->Option.getOr(None),
+  path: field.optional("path", D.string)->Option.getOr(""),
+  preview: field.optional("preview", D.string)->Option.getOr(""),
+})
+
+let decode = (json: JSON.t): option<t> => JsonUtil.decode(json, decoder)
 
 let encodeOption = value =>
   switch value {

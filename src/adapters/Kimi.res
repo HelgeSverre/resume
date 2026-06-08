@@ -31,14 +31,12 @@ let collectKimi = async (home, cache) => {
 
     let _ = await AdapterUtil.all(
       rows->Array.map(async row => {
-        let rowObj = row->JSON.Decode.object->Option.getOr(Dict.make())
-        let sessionId = rowObj->Dict.get("sessionId")->Option.flatMap(JSON.Decode.string)
-        let sessionDir = rowObj->Dict.get("sessionDir")->Option.flatMap(JSON.Decode.string)
+        let sessionId = JsonUtil.stringAt(row, ["sessionId"])
+        let sessionDir = JsonUtil.stringAt(row, ["sessionDir"])
 
         switch (sessionId, sessionDir) {
         | (Some(id), Some(dir)) =>
           let stateJson = await Cache.readJson(NodePath.join(dir, "state.json"))
-          let state = stateJson->Option.flatMap(JSON.Decode.object)->Option.getOr(Dict.make())
 
           let wirePath = NodePath.joinMany([dir, "agents", "main", "wire.jsonl"])
           let parsed = if await NodeFs.exists(wirePath) {
@@ -54,33 +52,13 @@ let collectKimi = async (home, cache) => {
             {messageCount: 0}
           }
 
-          let title = state->Dict.get("title")->Option.flatMap(JSON.Decode.string)->Option.getOr("")
+          let title = stateJson->Option.flatMap(j => JsonUtil.stringAt(j, ["title"]))->Option.getOr("")
           let lastPrompt =
-            state->Dict.get("lastPrompt")->Option.flatMap(JSON.Decode.string)->Option.getOr("")
+            stateJson->Option.flatMap(j => JsonUtil.stringAt(j, ["lastPrompt"]))->Option.getOr("")
           let preview = JsonUtil.compact(Some(lastPrompt), ~fallback="")
-          let updatedAt =
-            state
-            ->Dict.get("updatedAt")
-            ->Option.flatMap(val =>
-              switch val {
-              | JSON.String(s) => Some(JsonUtil.toMs(Some(JSON.Encode.string(s))))
-              | JSON.Number(n) => Some(n)
-              | _ => None
-              }
-            )
-            ->Option.getOr(0.0)
-          let createdAt =
-            state
-            ->Dict.get("createdAt")
-            ->Option.flatMap(val =>
-              switch val {
-              | JSON.String(s) => Some(JsonUtil.toMs(Some(JSON.Encode.string(s))))
-              | JSON.Number(n) => Some(n)
-              | _ => None
-              }
-            )
-            ->Option.getOr(0.0)
-          let workDir = rowObj->Dict.get("workDir")->Option.flatMap(JSON.Decode.string)
+          let updatedAt = stateJson->Option.mapOr(0.0, j => JsonUtil.msAt(j, ["updatedAt"]))
+          let createdAt = stateJson->Option.mapOr(0.0, j => JsonUtil.msAt(j, ["createdAt"]))
+          let workDir = JsonUtil.stringAt(row, ["workDir"])
 
           sessions->Array.push({
             Session.id,

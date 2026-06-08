@@ -8,26 +8,6 @@ external clipboard: clipboard = "default"
 
 let copyToClipboard = command => clipboard->writeClipboard(command)
 
-let help = () => {
-  Console.log(`resume
-
-Usage:
-  resume              Open searchable session picker
-  resume --json       Print normalized sessions as JSON
-  resume --copy <id>  Copy the resume command for a matching session id
-
-Keys:
-  type search text    Filter by tool, title, cwd, id, or preview
-  up/down             Move selection
-  tab                 Expand / collapse the preview panel
-  ctrl-a              Cycle the agent filter (all -> one tool -> ...)
-  ctrl-t              Toggle exact timestamp column
-  ctrl-u              Clear the search
-  enter               Copy resume command to clipboard, print it, and exit
-  esc or ctrl-c       Exit
-`)
-}
-
 let findSession = (sessions, id) => {
   switch sessions->Array.find(session => session.id == id) {
   | Some(session) => Some(session)
@@ -35,48 +15,49 @@ let findSession = (sessions, id) => {
   }
 }
 
+let loadSessions = async () =>
+  SessionList.mergeAndSort(
+    await Adapters.collectSessionsFromHome(env->Dict.get("HOME")->Option.getOr(homedir())),
+  )
+
+let printTsv = sessions =>
+  sessions
+  ->Array.slice(~start=0, ~end=50)
+  ->Array.forEach(session => {
+    Console.log(
+      `${session.tool->Session.toolName}\t${session.id}\t${session.title}\t${Session.copyCommand(
+          session,
+        )}`,
+    )
+  })
+
 let main = async () => {
   let args = argv->Array.slice(~start=2, ~end=argv->Array.length)
-  if args->Array.includes("--help") || args->Array.includes("-h") {
-    help()
-  } else {
-    let sessions = SessionList.mergeAndSort(
-      await Adapters.collectSessionsFromHome(env->Dict.get("HOME")->Option.getOr(homedir())),
-    )
-
-    if args->Array.includes("--json") {
-      Console.log(JSON.stringify(JSON.Encode.array(sessions->Array.map(Session.encode))))
+  switch Cli.parse(args) {
+  | Invalid(message) =>
+    Console.error(message)
+    exit(2)
+  | Parsed(Help) => Console.log(Cli.usage)
+  | Parsed(Json) =>
+    let sessions = await loadSessions()
+    Console.log(JSON.stringify(JSON.Encode.array(sessions->Array.map(Session.encode))))
+  | Parsed(Copy(id)) =>
+    let sessions = await loadSessions()
+    switch findSession(sessions, id) {
+    | Some(session) =>
+      let command = Session.copyCommand(session)
+      await copyToClipboard(command)
+      Console.log(command)
+    | None =>
+      Console.error(`No session found matching ${id}`)
+      exit(1)
+    }
+  | Parsed(Pick) =>
+    let sessions = await loadSessions()
+    if !(stdin->isTTY) || !(stdout->isTTY) {
+      printTsv(sessions)
     } else {
-      let copyIndex = args->Array.findIndex(arg => arg == "--copy")
-      if copyIndex >= 0 {
-        let id = args->Array.get(copyIndex + 1)->Option.getOr("")
-        if id == "" {
-          Console.error("Missing session id after --copy")
-          exit(2)
-        } else {
-          switch findSession(sessions, id) {
-          | Some(session) =>
-            let command = Session.copyCommand(session)
-            await copyToClipboard(command)
-            Console.log(command)
-          | None =>
-            Console.error(`No session found matching ${id}`)
-            exit(1)
-          }
-        }
-      } else if !(stdin->isTTY) || !(stdout->isTTY) {
-        sessions
-        ->Array.slice(~start=0, ~end=50)
-        ->Array.forEach(session => {
-          Console.log(
-            `${session.tool->Session.toolName}\t${session.id}\t${session.title}\t${Session.copyCommand(
-                session,
-              )}`,
-          )
-        })
-      } else {
-        await Tui.runPicker(~copyToClipboard, sessions)
-      }
+      await Tui.runPicker(~copyToClipboard, sessions)
     }
   }
 }

@@ -38,21 +38,9 @@ let collectAntigravity = async home => {
           None
         }
 
-        let meta = metaJson->Option.flatMap(JSON.Decode.object)->Option.getOr(Dict.make())
         let summary =
-          meta->Dict.get("summary")->Option.flatMap(JSON.Decode.string)->Option.getOr("")
-
-        let updatedAt =
-          meta
-          ->Dict.get("updatedAt")
-          ->Option.flatMap(val =>
-            switch val {
-            | JSON.String(s) => Some(JsonUtil.toMs(Some(JSON.Encode.string(s))))
-            | JSON.Number(n) => Some(n)
-            | _ => None
-            }
-          )
-          ->Option.getOr(0.0)
+          metaJson->Option.flatMap(j => JsonUtil.stringAt(j, ["summary"]))->Option.getOr("")
+        let updatedAt = metaJson->Option.mapOr(0.0, j => JsonUtil.msAt(j, ["updatedAt"]))
 
         sessions->Array.push({
           Session.id,

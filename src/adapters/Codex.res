@@ -22,21 +22,18 @@ let encodeParsed = (p: parsed): JSON.t =>
     ("preview", Codec.string(p.preview)),
   ])
 
-let decodeParsed = json =>
-  json->Codec.asObject(obj =>
-    switch obj->Codec.getString("id") {
-    | Some(id) =>
-      Some({
-        id,
-        messageCount: obj->Codec.getInt("messageCount")->Option.getOr(0),
-        updatedAtMs: obj->Codec.getFloat("updatedAtMs")->Option.getOr(0.0),
-        cwd: obj->Codec.getString("cwd"),
-        path: obj->Codec.getString("path")->Option.getOr(""),
-        preview: obj->Codec.getString("preview")->Option.getOr(""),
-      })
-    | None => None
-    }
-  )
+module D = JsonCombinators.Json.Decode
+
+let parsedDecoder = D.object(field => {
+  id: field.required("id", D.string),
+  messageCount: field.optional("messageCount", D.float)->Option.mapOr(0, Float.toInt),
+  updatedAtMs: field.optional("updatedAtMs", D.float)->Option.getOr(0.0),
+  cwd: field.optional("cwd", D.option(D.string))->Option.getOr(None),
+  path: field.optional("path", D.string)->Option.getOr(""),
+  preview: field.optional("preview", D.string)->Option.getOr(""),
+})
+
+let decodeParsed = json => JsonUtil.decode(json, parsedDecoder)
 
 let parseCodexFile = async path => {
   let lines = AdapterUtil.splitLines(await NodeFs.readFile(path, "utf8"))
@@ -44,15 +41,7 @@ let parseCodexFile = async path => {
   let metaRow = AdapterUtil.firstParsedLine(lines, line =>
     JsonUtil.hasJsonField(line, "type", "session_meta")
   )
-  let meta = switch metaRow
-  ->Option.flatMap(JSON.Decode.object)
-  ->Option.flatMap(obj => obj->Dict.get("payload"))
-  ->Option.flatMap(JSON.Decode.object) {
-  | Some(obj) => obj
-  | None => Dict.make()
-  }
-
-  let id = switch meta->Dict.get("id")->Option.flatMap(JSON.Decode.string) {
+  let id = switch metaRow->Option.flatMap(j => JsonUtil.stringAt(j, ["payload", "id"])) {
   | Some(id) => id
   | None => {
       let base = NodePath.basename(path, ".jsonl")
@@ -64,20 +53,13 @@ let parseCodexFile = async path => {
     JsonUtil.hasJsonField(line, "type", "response_item") && AdapterUtil.isUserOrAssistantLine(line)
 
   let previewRow = AdapterUtil.lastParsedLine(lines, isMessageLine)
-  let previewText = switch previewRow
-  ->Option.flatMap(JSON.Decode.object)
-  ->Option.flatMap(obj => obj->Dict.get("payload"))
-  ->Option.flatMap(JSON.Decode.object)
-  ->Option.flatMap(obj => obj->Dict.get("content")) {
-  | Some(content) => JsonUtil.textFromContent(content)
-  | None => ""
-  }
+  let previewText = previewRow->Option.mapOr("", j => JsonUtil.textAt(j, ["payload", "content"]))
 
   {
     id,
     messageCount: AdapterUtil.countLines(lines, isMessageLine),
     updatedAtMs: AdapterUtil.lastTimestampFromLines(lines),
-    cwd: meta->Dict.get("cwd")->Option.flatMap(JSON.Decode.string),
+    cwd: metaRow->Option.flatMap(j => JsonUtil.stringAt(j, ["payload", "cwd"])),
     path,
     preview: previewText,
   }
@@ -91,23 +73,15 @@ let collectCodex = async (home, cache) => {
   if await NodeFs.exists(indexPath) {
     let rows = await AdapterUtil.readJsonl(indexPath)
     rows->Array.forEach(row => {
-      switch JSON.Decode.object(row) {
-      | Some(obj) =>
-        switch obj->Dict.get("id")->Option.flatMap(JSON.Decode.string) {
-        | Some(id) =>
-          let title =
-            obj->Dict.get("thread_name")->Option.flatMap(JSON.Decode.string)->Option.getOr(id)
-          let updatedAt =
-            obj->Dict.get("updated_at")->Option.flatMap(JSON.Decode.string)->Option.getOr("")
-          index->Dict.set(
-            id,
-            {
-              title,
-              updatedAtMs: JsonUtil.toMs(Some(JSON.Encode.string(updatedAt))),
-            },
-          )
-        | None => ()
-        }
+      switch JsonUtil.stringAt(row, ["id"]) {
+      | Some(id) =>
+        index->Dict.set(
+          id,
+          {
+            title: JsonUtil.stringAt(row, ["thread_name"])->Option.getOr(id),
+            updatedAtMs: JsonUtil.msAt(row, ["updated_at"]),
+          },
+        )
       | None => ()
       }
     })

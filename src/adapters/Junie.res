@@ -29,27 +29,21 @@ let parseJunieEvents = async eventsPath => {
     None
   }
 
-  let preview = switch previewEvent->Option.flatMap(JSON.Decode.object) {
-  | Some(obj) =>
-    switch obj->Dict.get("presentablePrompt")->Option.flatMap(JSON.Decode.string) {
-    | Some(t) => t
-    | None =>
-      switch obj->Dict.get("prompt")->Option.flatMap(JSON.Decode.string) {
-      | Some(t) => t
-      | None => obj->Dict.get("text")->Option.flatMap(JSON.Decode.string)->Option.getOr("")
-      }
-    }
-  | None => ""
-  }
+  let preview =
+    previewEvent
+    ->Option.flatMap(j =>
+      JsonUtil.stringAt(j, ["presentablePrompt"])
+      ->Option.orElse(JsonUtil.stringAt(j, ["prompt"]))
+      ->Option.orElse(JsonUtil.stringAt(j, ["text"]))
+    )
+    ->Option.getOr("")
 
-  let fallbackPreview = switch fallbackPreviewEvent->Option.flatMap(JSON.Decode.object) {
-  | Some(obj) =>
-    switch obj->Dict.get("text")->Option.flatMap(JSON.Decode.string) {
-    | Some(t) => t
-    | None => obj->Dict.get("details")->Option.flatMap(JSON.Decode.string)->Option.getOr("")
-    }
-  | None => ""
-  }
+  let fallbackPreview =
+    fallbackPreviewEvent
+    ->Option.flatMap(j =>
+      JsonUtil.stringAt(j, ["text"])->Option.orElse(JsonUtil.stringAt(j, ["details"]))
+    )
+    ->Option.getOr("")
 
   {
     messageCount: AdapterUtil.countLines(lines, line => isUserPrompt(line) || isTaskState(line)),
@@ -74,9 +68,7 @@ let collectJunie = async (home, cache) => {
 
     let _ = await AdapterUtil.all(
       rows->Array.map(async row => {
-        switch JSON.Decode.object(row)
-        ->Option.flatMap(obj => obj->Dict.get("sessionId"))
-        ->Option.flatMap(JSON.Decode.string) {
+        switch JsonUtil.stringAt(row, ["sessionId"]) {
         | Some(sessionId) =>
           let eventsPath = NodePath.joinMany([sessionsDir, sessionId, "events.jsonl"])
           let parsed = if await NodeFs.exists(eventsPath) {
@@ -92,24 +84,9 @@ let collectJunie = async (home, cache) => {
             {messageCount: 0, preview: ""}
           }
 
-          let rowObj = row->JSON.Decode.object->Option.getOr(Dict.make())
-          let taskName =
-            rowObj
-            ->Dict.get("taskName")
-            ->Option.flatMap(JSON.Decode.string)
-            ->Option.getOr(sessionId)
-          let updatedAt =
-            rowObj
-            ->Dict.get("updatedAt")
-            ->Option.flatMap(val =>
-              switch val {
-              | JSON.String(s) => Some(JsonUtil.toMs(Some(JSON.Encode.string(s))))
-              | JSON.Number(n) => Some(n)
-              | _ => None
-              }
-            )
-            ->Option.getOr(0.0)
-          let projectDir = rowObj->Dict.get("projectDir")->Option.flatMap(JSON.Decode.string)
+          let taskName = JsonUtil.stringAt(row, ["taskName"])->Option.getOr(sessionId)
+          let updatedAt = JsonUtil.msAt(row, ["updatedAt"])
+          let projectDir = JsonUtil.stringAt(row, ["projectDir"])
 
           sessions->Array.push({
             Session.id: sessionId,

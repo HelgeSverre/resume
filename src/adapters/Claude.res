@@ -2,9 +2,7 @@ let parseClaudeFile = async path => {
   let lines = AdapterUtil.splitLines(await NodeFs.readFile(path, "utf8"))
 
   let id = switch AdapterUtil.firstParsedLine(lines, line => line->String.includes("\"sessionId\""))
-  ->Option.flatMap(JSON.Decode.object)
-  ->Option.flatMap(obj => obj->Dict.get("sessionId"))
-  ->Option.flatMap(JSON.Decode.string) {
+  ->Option.flatMap(j => JsonUtil.stringAt(j, ["sessionId"])) {
   | Some(id) => id
   | None => NodePath.basename(path, ".jsonl")
   }
@@ -26,35 +24,22 @@ let parseClaudeFile = async path => {
   }
 
   let previewRow = AdapterUtil.lastParsedLine(lines, isMessageLine)
-  let previewText = switch previewRow
-  ->Option.flatMap(JSON.Decode.object)
-  ->Option.flatMap(obj => obj->Dict.get("message"))
-  ->Option.flatMap(JSON.Decode.object)
-  ->Option.flatMap(obj => obj->Dict.get("content")) {
-  | Some(content) => JsonUtil.textFromContent(content)
-  | None => ""
-  }
+  let previewText = previewRow->Option.mapOr("", j => JsonUtil.textAt(j, ["message", "content"]))
 
-  let cwd = switch previewRow
-  ->Option.flatMap(JSON.Decode.object)
-  ->Option.flatMap(obj => obj->Dict.get("cwd"))
-  ->Option.flatMap(JSON.Decode.string) {
-  | Some(cwd) => Some(cwd)
-  | None =>
-    AdapterUtil.firstParsedLine(lines, line => line->String.includes("\"cwd\""))
-    ->Option.flatMap(JSON.Decode.object)
-    ->Option.flatMap(obj => obj->Dict.get("cwd"))
-    ->Option.flatMap(JSON.Decode.string)
-  }
+  let cwd =
+    previewRow
+    ->Option.flatMap(j => JsonUtil.stringAt(j, ["cwd"]))
+    ->Option.orElse(
+      AdapterUtil.firstParsedLine(lines, line => line->String.includes("\"cwd\""))
+      ->Option.flatMap(j => JsonUtil.stringAt(j, ["cwd"])),
+    )
 
-  let title = switch titleRow->Option.flatMap(JSON.Decode.object) {
-  | Some(obj) =>
-    switch obj->Dict.get("aiTitle")->Option.flatMap(JSON.Decode.string) {
-    | Some(t) => t
-    | None => obj->Dict.get("lastPrompt")->Option.flatMap(JSON.Decode.string)->Option.getOr("")
-    }
-  | None => ""
-  }
+  let title =
+    titleRow
+    ->Option.flatMap(j =>
+      JsonUtil.stringAt(j, ["aiTitle"])->Option.orElse(JsonUtil.stringAt(j, ["lastPrompt"]))
+    )
+    ->Option.getOr("")
 
   {
     Session.id,
