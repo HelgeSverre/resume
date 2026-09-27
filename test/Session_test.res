@@ -33,6 +33,16 @@ test("shell-quotes cwd paths containing shell metacharacters", () => {
   equal(Session.copyCommand(session), "cd '/tmp/demo$branch' && claude --resume abc-123")
 })
 
+test("shell-quotes session ids in resume commands", () => {
+  let session = {...baseSession, cwd: None, id: "id; touch /tmp/unwanted"}
+  equal(Session.copyCommand(session), "claude --resume 'id; touch /tmp/unwanted'")
+})
+
+test("shell-quotes Gemini session file paths", () => {
+  let session = {...baseSession, tool: Gemini, cwd: None, path: "/tmp/a user's session.jsonl"}
+  equal(Session.copyCommand(session), "gemini --session-file '/tmp/a user'\\''s session.jsonl'")
+})
+
 test("uses the correct resume command for each supported tool", () => {
   equal(
     Session.copyCommand({...baseSession, tool: Codex}),
@@ -65,6 +75,26 @@ test("uses the correct resume command for each supported tool", () => {
   equal(
     Session.copyCommand({...baseSession, tool: Antigravity}),
     "cd /Users/helge/code/demo && agy --conversation abc-123",
+  )
+  equal(
+    Session.copyCommand({...baseSession, tool: Gemini}),
+    "cd /Users/helge/code/demo && gemini --session-file /tmp/session.jsonl",
+  )
+  equal(
+    Session.copyCommand({...baseSession, tool: Vibe}),
+    "cd /Users/helge/code/demo && vibe --resume abc-123",
+  )
+  equal(
+    Session.copyCommand({...baseSession, tool: Kilo}),
+    "cd /Users/helge/code/demo && kilo --session abc-123",
+  )
+  equal(
+    Session.copyCommand({...baseSession, tool: Hermes}),
+    "cd /Users/helge/code/demo && hermes --resume abc-123",
+  )
+  equal(
+    Session.copyCommand({...baseSession, tool: Devin}),
+    "cd /Users/helge/code/demo && devin --resume abc-123",
   )
 })
 
@@ -118,6 +148,11 @@ test("toolFromName is the inverse of toolName for every tool", () => {
     Kimi,
     Copilot,
     Antigravity,
+    Gemini,
+    Vibe,
+    Kilo,
+    Hermes,
+    Devin,
   ]->Array.forEach(tool => {
     equal(Session.toolFromName(Session.toolName(tool)), Some(tool))
   })

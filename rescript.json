@@ -10,10 +10,6 @@
     {
       "dir": "test",
       "type": "dev"
-    },
-    {
-      "dir": "demo",
-      "type": "dev"
     }
   ],
   "package-specs": {

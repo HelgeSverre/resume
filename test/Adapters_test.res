@@ -278,10 +278,40 @@ testAsync("collects normalized sessions from supported local agent stores", asyn
 })
 
 test("adapter registry names are unique", () => {
-  let names = Adapters.registry->Array.map(a => a.name)
+  let names = Adapters.registry->Array.map(a => Session.toolName(a.tool))
   let unique = names->Array.reduce(Dict.make(), (dict, name) => {
     dict->Dict.set(name, true)
     dict
   })
   equal(unique->Dict.keysToArray->Array.length, names->Array.length)
+})
+
+testAsync("cached file collector keeps valid sessions when one file fails", async () => {
+  let home = await NodeFs.mkdtemp(NodePath.join(NodeProcess.tmpdir(), "resume-partial-"))
+  await NodeFs.writeFile(NodePath.join(home, "good.json"), "good")
+  await NodeFs.writeFile(NodePath.join(home, "bad.json"), "bad")
+  let cache = await Cache.loadCache(home)
+  let sessions = await AdapterUtil.collectCachedSessions(
+    ~root=home,
+    ~matches=path => path->String.endsWith(".json"),
+    ~namespace="partial-test",
+    ~parse=async path => {
+      let content = await NodeFs.readFile(path, "utf8")
+      if content == "bad" {
+        ignore(JSON.parseOrThrow("invalid"))
+      }
+      {
+        Session.id: "good",
+        tool: Claude,
+        title: "Good",
+        messageCount: 1,
+        updatedAtMs: 1.0,
+        cwd: None,
+        path,
+        preview: "",
+      }
+    },
+    cache,
+  )
+  assertEqual(sessions->Array.length, 1, "one valid session survives")
 })

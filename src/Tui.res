@@ -6,6 +6,7 @@ type keyEvent = {
   ctrl?: bool,
   meta?: bool,
   name?: string,
+  sequence?: string,
 }
 
 // A decoded key action; the pure layer never sees raw readline events.
@@ -14,6 +15,7 @@ type key =
   | Down
   | PageUp
   | PageDown
+  | Wheel(int)
   | Enter
   | Escape
   | ClearQuery
@@ -62,6 +64,10 @@ type box<'a> = {mutable value: 'a}
 
 let esc = "\x1b["
 
+type timer
+@val external schedule: (unit => unit, int) => timer = "setTimeout"
+@val external cancel: timer => unit = "clearTimeout"
+
 let intMax = (a, b) =>
   if a > b {
     a
@@ -82,11 +88,23 @@ let useColor = () => {
 let enterAltScreen = () => {
   // Switch to the alternate screen, hide the cursor, clear it once and home the
   // cursor. Subsequent frames overwrite in place to avoid flicker.
-  stdout->write(esc ++ "?1049h" ++ esc ++ "?25l" ++ esc ++ "2J" ++ esc ++ "H")
+  stdout->write(
+    esc ++
+    "?1049h" ++
+    esc ++
+    "?25l" ++
+    esc ++
+    "?1000h" ++
+    esc ++
+    "?1006h" ++
+    esc ++
+    "2J" ++
+    esc ++ "H",
+  )
 }
 
 let leaveAltScreen = () => {
-  stdout->write(esc ++ "?25h" ++ esc ++ "?1049l")
+  stdout->write(esc ++ "?1006l" ++ esc ++ "?1000l" ++ esc ++ "?25h" ++ esc ++ "?1049l")
 }
 
 let inverse = text => {
@@ -129,6 +147,11 @@ let toolColor = (tool, text) => {
   | Kimi => 176
   | Copilot => 147
   | Antigravity => 80
+  | Gemini => 81
+  | Vibe => 214
+  | Kilo => 141
+  | Hermes => 220
+  | Devin => 111
   }
   color(code, text)
 }
@@ -273,11 +296,10 @@ let cwdLabel = cwd => {
   }
 }
 
-// Canonical agent order for the ctrl+a cycle (only those present are kept).
-let canonicalToolOrder = [Claude, Codex, Amp, OpenCode, Kimi, Copilot, Junie, Pi, Antigravity]
-
 let distinctTools = sessions =>
-  canonicalToolOrder->Array.filter(tool => sessions->Array.some(s => s.Session.tool == tool))
+  Adapters.registry
+  ->Array.map(adapter => adapter.tool)
+  ->Array.filter(tool => sessions->Array.some(s => s.Session.tool == tool))
 
 // The visible sessions for the current agent filter + search query.
 let filteredFor = (state: pickerState) => {
@@ -285,7 +307,11 @@ let filteredFor = (state: pickerState) => {
   | None => state.sessions
   | Some(tool) => state.sessions->Array.filter(s => s.Session.tool == tool)
   }
-  SessionList.visible(~query=state.query, base)
+  if state.query == "" {
+    base
+  } else {
+    base->Array.filter(session => Session.matchesQuery(session, state.query))
+  }
 }
 
 // Number of fixed "chrome" lines around the preview inside the details box when
@@ -478,6 +504,10 @@ let update = (state: pickerState, key, ~visible: array<Session.t>, ~rowsHeight) 
     state.selected = intMax(0, state.selected - step)
     scroll()
     Continue
+  | Wheel(delta) =>
+    state.selected = intMin(intMax(0, state.selected + delta), lastIndex)
+    scroll()
+    Continue
   | Backspace =>
     state.query = state.query->String.slice(~start=0, ~end=state.query->String.length - 1)
     resetToTop()
@@ -606,13 +636,12 @@ let legendLine = (~width) => {
 // Pure: render the whole picker to an array of lines (no IO, no mutation).
 // Every returned line is guaranteed to fit within `metrics.width` so the
 // terminal never soft-wraps and breaks the fixed layout.
-let view = (state: pickerState, ~metrics) => {
+let viewWithVisible = (state: pickerState, ~metrics, visible) => {
   let width = intMax(1, metrics.width)
   let layout = layoutFor(~height=metrics.height, ~expanded=state.expanded)
   let rowsHeight = layout.rowsHeight
   let cols = tableColumns(~width, ~showExactTime=state.showExactTime)
 
-  let visible = filteredFor(state)
   let lastIndex = intMax(0, visible->Array.length - 1)
   let selected = intMin(intMax(0, state.selected), lastIndex)
   let offset = intMin(intMax(0, state.offset), lastIndex)
@@ -718,6 +747,22 @@ let view = (state: pickerState, ~metrics) => {
   out
 }
 
+let view = (state: pickerState, ~metrics) => viewWithVisible(state, ~metrics, filteredFor(state))
+
+// Readline splits SGR mouse reports into individual keypresses. Parse the
+// report body after its ESC[< prefix, ignoring buttons and release events.
+let wheelDelta = report => {
+  if !(report->String.endsWith("M")) {
+    None
+  } else {
+    switch report->String.split(";")->Array.get(0)->Option.flatMap(s => Int.fromString(s)) {
+    | Some(button) if button >= 64 && button < 96 && button - button / 4 * 4 < 2 =>
+      Some(button / 2 * 2 == button ? -3 : 3)
+    | _ => None
+    }
+  }
+}
+
 // `copyToClipboard` is injected by the caller (Main owns the clipboardy FFI so
 // Tui stays free of that dependency and remains testable without a TTY).
 let runPicker = async (~copyToClipboard, sessions) => {
@@ -725,7 +770,7 @@ let runPicker = async (~copyToClipboard, sessions) => {
     Console.log("No resumable sessions found.")
   } else {
     let state = {
-      sessions,
+      sessions: SessionList.mergeAndSort(sessions),
       tools: distinctTools(sessions),
       query: "",
       selected: 0,
@@ -735,8 +780,11 @@ let runPicker = async (~copyToClipboard, sessions) => {
       expanded: false,
       agentFilter: None,
     }
+    let visible = {value: filteredFor(state)}
 
     let input = stdin
+    let mouseReport = {value: None}
+    let renderTimer = {value: None}
 
     let restored = {value: false}
     let restore = () => {
@@ -752,20 +800,36 @@ let runPicker = async (~copyToClipboard, sessions) => {
     })
 
     let render = () => {
+      switch renderTimer.value {
+      | Some(timer) =>
+        cancel(timer)
+        renderTimer.value = None
+      | None => ()
+      }
       let metrics = {width: stdout->columns, height: stdout->rows, nowMs: Date.now()}
       let layout = layoutFor(~height=metrics.height, ~expanded=state.expanded)
-      let visible = filteredFor(state)
-      clampScroll(state, ~visibleLen=visible->Array.length, ~rowsHeight=layout.rowsHeight)
+      clampScroll(state, ~visibleLen=visible.value->Array.length, ~rowsHeight=layout.rowsHeight)
       // Build the whole frame and write it in one call. Each line is cleared to
       // end-of-line and the area below is cleared, so we overwrite in place
       // instead of blanking the screen first (which causes flicker).
       let frame =
         esc ++
         "H" ++
-        view(state, ~metrics)->Array.map(line => line ++ esc ++ "K")->Array.join("\n") ++
+        viewWithVisible(state, ~metrics, visible.value)
+        ->Array.map(line => line ++ esc ++ "K")
+        ->Array.join("\n") ++
         esc ++ "0J"
       stdout->write(frame)
     }
+
+    let renderSoon = () =>
+      switch renderTimer.value {
+      | Some(_) => ()
+      | None => renderTimer.value = Some(schedule(() => {
+            renderTimer.value = None
+            render()
+          }, 16))
+      }
 
     enterAltScreen()
     NodeReadline.emitKeypressEvents(input)
@@ -776,6 +840,10 @@ let runPicker = async (~copyToClipboard, sessions) => {
       let onResize = () => render()
 
       let rec cleanup = () => {
+        switch renderTimer.value {
+        | Some(timer) => cancel(timer)
+        | None => ()
+        }
         input->NodeReadline.setRawMode(false)
         input->NodeReadline.removeListener("keypress", onKeypress)
         stdout->NodeReadline.removeListener("resize", onResize)
@@ -785,9 +853,45 @@ let runPicker = async (~copyToClipboard, sessions) => {
       }
 
       and onKeypress = (str: string, event: keyEvent) => {
+        let sequence = event.sequence->Option.getOr(str)
+        if sequence == esc ++ "<" {
+          mouseReport.value = Some("")
+        } else {
+          switch mouseReport.value {
+          | Some(report) =>
+            let next = report ++ sequence
+            if (
+              next->String.endsWith("M") || next->String.endsWith("m") || next->String.length > 64
+            ) {
+              mouseReport.value = None
+              switch wheelDelta(next) {
+              | Some(delta) =>
+                let rowsHeight = layoutFor(
+                  ~height=stdout->rows,
+                  ~expanded=state.expanded,
+                ).rowsHeight
+                let _ = update(state, Wheel(delta), ~visible=visible.value, ~rowsHeight)
+                renderSoon()
+              | None => ()
+              }
+            } else {
+              mouseReport.value = Some(next)
+            }
+          | None => handleKeypress(str, event)
+          }
+        }
+      }
+
+      and handleKeypress = (str: string, event: keyEvent) => {
         let layout = layoutFor(~height=stdout->rows, ~expanded=state.expanded)
-        let visible = filteredFor(state)
-        switch update(state, keyOfEvent(str, event), ~visible, ~rowsHeight=layout.rowsHeight) {
+        let priorQuery = state.query
+        let priorFilter = state.agentFilter
+        switch update(
+          state,
+          keyOfEvent(str, event),
+          ~visible=visible.value,
+          ~rowsHeight=layout.rowsHeight,
+        ) {
         | Exit => cleanup()
         | Submit(session) =>
           let command = selectedCommandOutput(session)
@@ -803,7 +907,11 @@ let runPicker = async (~copyToClipboard, sessions) => {
             Promise.resolve()
           })
           ->ignore
-        | Continue => render()
+        | Continue =>
+          if priorQuery != state.query || priorFilter != state.agentFilter {
+            visible.value = filteredFor(state)
+          }
+          render()
         }
       }
 

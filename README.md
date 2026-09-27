@@ -23,7 +23,7 @@ Or run it without installing:
 npx @helgesverre/resume
 ```
 
-It ships as a single bundled binary; the only runtime dependency is [`clipboardy`](https://www.npmjs.com/package/clipboardy), and it requires Node.js 22 or newer.
+It ships with a bundled Node.js executable and one external runtime dependency, [`clipboardy`](https://www.npmjs.com/package/clipboardy). Node.js 22.13 or newer is required.
 
 ## Usage
 
@@ -37,6 +37,7 @@ Type to search by tool, title, cwd, session id, or preview text.
 | ---------------- | ------------------------------------------------------------ |
 | type             | Filter by tool, title, cwd, id, or preview                   |
 | `↑` / `↓`        | Move selection                                               |
+| mouse wheel      | Scroll the session list                                      |
 | `PageUp/Down`    | Jump 10 rows                                                 |
 | `Tab`            | Expand / collapse the preview panel                          |
 | `Ctrl+A`         | Cycle the agent filter (all → one tool → …)                  |
@@ -62,19 +63,28 @@ eval "$(resume)"
 
 `resume` reads each tool's local session files (no network access) and knows how to build the right resume command for each:
 
-| Tool        | Scanned location                                                                  | Resume command                     |
-| ----------- | --------------------------------------------------------------------------------- | ---------------------------------- |
-| Claude Code | `~/.claude/projects`                                                              | `claude --resume <id>`             |
-| Codex       | `~/.codex/sessions`, `~/.codex/archived_sessions`, `~/.codex/session_index.jsonl` | `codex resume <id>`                |
-| Amp         | `~/.local/share/amp/threads`                                                      | `amp threads continue <id>`        |
-| OpenCode    | `~/.local/share/opencode/storage`                                                 | `opencode --session <id>`          |
-| Junie       | `~/.junie/sessions`                                                               | `junie --resume --session-id <id>` |
-| Pi          | `~/.pi/agent/sessions`                                                            | `pi --session <id>`                |
-| Kimi        | `~/.kimi-code/session_index.jsonl`, `~/.kimi-code/sessions`                       | `kimi --session <id>`              |
-| Copilot     | `~/.copilot/session-state`                                                        | `copilot --resume <id>`            |
-| Antigravity | `~/.gemini/antigravity-cli/conversations`, `~/.gemini/antigravity-cli/brain`      | `agy --conversation <id>`          |
+| Tool         | Scanned location                                                                               | Resume command                     |
+| ------------ | ---------------------------------------------------------------------------------------------- | ---------------------------------- |
+| Claude Code  | `~/.claude/projects`                                                                           | `claude --resume <id>`             |
+| Codex        | `~/.codex/sessions`, `~/.codex/archived_sessions`, `~/.codex/session_index.jsonl`              | `codex resume <id>`                |
+| Amp          | `~/.local/share/amp/threads`                                                                   | `amp threads continue <id>`        |
+| OpenCode     | `~/.local/share/opencode/storage`, `~/.local/share/opencode/opencode.db`                        | `opencode --session <id>`          |
+| Junie        | `~/.junie/sessions`                                                                            | `junie --resume --session-id <id>` |
+| Pi           | `~/.pi/agent/sessions`                                                                         | `pi --session <id>`                |
+| Kimi         | `~/.kimi-code/session_index.jsonl`, `~/.kimi-code/sessions`                                    | `kimi --session <id>`              |
+| Copilot      | `~/.copilot/session-state`                                                                     | `copilot --resume <id>`            |
+| Antigravity  | `~/.gemini/antigravity-cli/conversations` (`.pb` and `.db`), `~/.gemini/antigravity-cli/brain` | `agy --conversation <id>`          |
+| Gemini CLI   | `~/.gemini/tmp/*/chats`                                                                        | `gemini --session-file <path>`     |
+| Mistral Vibe | `~/.vibe/logs/session`                                                                         | `vibe --resume <id>`               |
+| Kilo         | `~/.local/share/kilo/kilo.db`                                                                  | `kilo --session <id>`              |
+| Hermes       | `~/.hermes/state.db`                                                                           | `hermes --resume <id>`             |
+| Devin        | `~/.local/share/devin/cli/sessions.db`                                                         | `devin --resume <id>`              |
 
-When a session records its working directory, the printed command is prefixed with `cd <cwd> &&` so you land back in the project. Parsed sessions are cached in `~/.cache/resume/sessions-cache-v2.json`, keyed by file size and mtime, so repeat runs are fast.
+When a session records its working directory, the printed command is prefixed with `cd <cwd> &&` so you land back in the project. File-based adapters that use the shared cache store parsed sessions in `~/.cache/resume/sessions-cache-v2.json`, keyed by file size and mtime.
+
+### Adding an adapter
+
+Add a collector in `src/adapters/` that returns normalized `Session.t` values. For one session per file, `AdapterUtil.collectCachedSessions` handles file discovery, caching, and bounded reads. `NodeSqlite.query` reads SQLite stores without changing them. Register the collector in `src/Adapters.res`; the registry also defines the order of tools in the picker filter. Add its `Session.tool` value, name, and resume command in `src/Session.res`, then add anonymized fixtures under `test/`. Run `npm test`, `npm run dist`, and a local scan to verify the format.
 
 ## Other commands
 
@@ -90,8 +100,9 @@ When stdout is not a TTY (e.g. piped), `resume` prints up to 50 sessions as tab-
 ## Build from source
 
 ```sh
-npm install   # also runs `npm run dist` via the prepare script
-npm link      # exposes the `resume` binary (dist/resume.mjs)
+npm install
+npm run dist
+npm link      # exposes the resume command
 ```
 
 ## Development
@@ -99,26 +110,26 @@ npm link      # exposes the `resume` binary (dist/resume.mjs)
 ```sh
 npm run build         # compile ReScript (src/*.res -> lib/)
 npm test              # build, then run the ReScript test suite
-npm run dist          # build + bundle to a single dist/resume.mjs
+npm run dist          # build + bundle dist/resume.mjs
 npm run format        # format the ReScript sources with `rescript format`
 ```
 
 The application is written entirely in ReScript (`src/*.res`):
 
 - `src/Session.res`, `src/SessionList.res` — the session model, resume-command builder, search, and JSON codecs.
-- `src/adapters/*.res` — one module per tool, plus shared `AdapterUtil`/`Codec` helpers; registered in `src/Adapters.res`.
+- `src/adapters/*.res` — collectors grouped by data format where useful, plus the shared `AdapterUtil` helper; registered in `src/Adapters.res`.
 - `src/JsonUtil.res` — shared JSON decode helpers built on [`@glennsl/rescript-json-combinators`](https://github.com/glennsl/rescript-json-combinators), used by the adapters and the session codec.
 - `src/Cache.res` — the stat-keyed parsed-session cache, with explicit per-adapter encode/decode codecs.
 - `src/Tui.res` — a pure core (`update`, `view`, `keyOfEvent`) wrapped by a thin effectful picker shell, so layout and key handling are unit-tested without a TTY.
 - `src/Cli.res` — typed parsing of argv into a single command, unit-tested without spawning the process.
-- `src/node/*.res` — thin typed bindings to Node's `fs`, `path`, `process`, `readline`, and `url`.
+- `src/node/*.res` — thin typed bindings to Node's `fs`, `path`, `process`, `readline`, `url`, and SQLite modules.
 - `src/Main.res` — the CLI entry point that dispatches the parsed command.
 
-ReScript compiles to `lib/`, and [esbuild](https://esbuild.github.io/) bundles `lib/es6/src/Main.mjs` into the single executable `dist/resume.mjs` (with `clipboardy` kept external). ReScript files are formatted with `rescript format`.
+ReScript compiles to `lib/`, and [esbuild](https://esbuild.github.io/) bundles `lib/es6/src/Main.mjs` into `dist/resume.mjs` (with `clipboardy` kept external). `npm pack` builds this distribution through `prepack`. Generated output and package-manager lockfiles are ignored in this repository. ReScript files are formatted with `rescript format`.
 
 ## Demo GIF
 
-`demo/resume.gif` is recorded with [VHS](https://github.com/charmbracelet/vhs). It runs against a throwaway tree of synthetic sessions (one per supported tool) so the recording never shows real history. To regenerate it:
+`demo/resume.gif` is recorded with [VHS](https://github.com/charmbracelet/vhs). It runs against a throwaway tree of synthetic sessions so the recording never shows real history. To regenerate it:
 
 ```sh
 vhs demo/resume.tape   # writes demo/resume.gif

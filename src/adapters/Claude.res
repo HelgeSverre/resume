@@ -1,8 +1,9 @@
 let parseClaudeFile = async path => {
   let lines = AdapterUtil.splitLines(await NodeFs.readFile(path, "utf8"))
 
-  let id = switch AdapterUtil.firstParsedLine(lines, line => line->String.includes("\"sessionId\""))
-  ->Option.flatMap(j => JsonUtil.stringAt(j, ["sessionId"])) {
+  let id = switch AdapterUtil.firstParsedLine(lines, line =>
+    line->String.includes("\"sessionId\"")
+  )->Option.flatMap(j => JsonUtil.stringAt(j, ["sessionId"])) {
   | Some(id) => id
   | None => NodePath.basename(path, ".jsonl")
   }
@@ -30,8 +31,9 @@ let parseClaudeFile = async path => {
     previewRow
     ->Option.flatMap(j => JsonUtil.stringAt(j, ["cwd"]))
     ->Option.orElse(
-      AdapterUtil.firstParsedLine(lines, line => line->String.includes("\"cwd\""))
-      ->Option.flatMap(j => JsonUtil.stringAt(j, ["cwd"])),
+      AdapterUtil.firstParsedLine(lines, line =>
+        line->String.includes("\"cwd\"")
+      )->Option.flatMap(j => JsonUtil.stringAt(j, ["cwd"])),
     )
 
   let title =
@@ -54,23 +56,11 @@ let parseClaudeFile = async path => {
 }
 
 let collectClaude = async (home, cache) => {
-  let files =
-    (
-      await AdapterUtil.walkFiles(NodePath.joinMany([home, ".claude", "projects"]), path =>
-        path->String.endsWith(".jsonl")
-      )
-    )->Array.filter(path => !(path->String.includes("/subagents/")))
-
-  await AdapterUtil.all(
-    files->Array.map(async path => {
-      await Cache.cachedValue(
-        cache,
-        ~namespace="claude-session-v1",
-        path,
-        ~encode=Session.encode,
-        ~decode=Session.decode,
-        parseClaudeFile,
-      )
-    }),
+  await AdapterUtil.collectCachedSessions(
+    ~root=NodePath.joinMany([home, ".claude", "projects"]),
+    ~matches=path => path->String.endsWith(".jsonl") && !(path->String.includes("/subagents/")),
+    ~namespace="claude-session-v1",
+    ~parse=parseClaudeFile,
+    cache,
   )
 }

@@ -13,13 +13,13 @@ type indexEntry = {
 }
 
 let encodeParsed = (p: parsed): JSON.t =>
-  Codec.object([
-    ("id", Codec.string(p.id)),
-    ("messageCount", Codec.int(p.messageCount)),
-    ("updatedAtMs", Codec.float(p.updatedAtMs)),
-    ("cwd", Codec.nullableString(p.cwd)),
-    ("path", Codec.string(p.path)),
-    ("preview", Codec.string(p.preview)),
+  JsonUtil.object([
+    ("id", JsonUtil.string(p.id)),
+    ("messageCount", JsonUtil.int(p.messageCount)),
+    ("updatedAtMs", JsonUtil.float(p.updatedAtMs)),
+    ("cwd", JsonUtil.nullableString(p.cwd)),
+    ("path", JsonUtil.string(p.path)),
+    ("preview", JsonUtil.string(p.preview)),
   ])
 
 module D = JsonCombinators.Json.Decode
@@ -98,8 +98,8 @@ let collectCodex = async (home, cache) => {
 
   let byId = Dict.make()
 
-  let _ = await AdapterUtil.all(
-    sessionFiles->Array.map(async path => {
+  let _ = await AdapterUtil.mapBounded(sessionFiles, async path => {
+    try {
       let parsed = await Cache.cachedValue(
         cache,
         ~namespace="codex-file-v1",
@@ -133,8 +133,10 @@ let collectCodex = async (home, cache) => {
           preview: parsed.preview,
         },
       )
-    }),
-  )
+    } catch {
+    | _ => Console.error("Warning: skipped an unreadable Codex session")
+    }
+  })
 
   index
   ->Dict.keysToArray

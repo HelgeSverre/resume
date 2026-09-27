@@ -12,7 +12,7 @@ type entry = {
 type t = {
   path: string,
   mutable entries: Dict.t<entry>,
-  mutable used: array<string>,
+  used: Dict.t<bool>,
   mutable changed: bool,
 }
 
@@ -75,7 +75,7 @@ let loadCache = async home => {
   {
     path,
     entries,
-    used: [],
+    used: Dict.make(),
     changed: false,
   }
 }
@@ -85,7 +85,7 @@ let saveCache = async cache => {
     ()
   } else {
     let filteredEntries = Dict.make()
-    cache.used->Array.forEach(path => {
+    cache.used->Dict.forEachWithKey((_, path) => {
       switch cache.entries->Dict.get(path) {
       | Some(entry) => filteredEntries->Dict.set(path, entry)
       | None => ()
@@ -122,13 +122,13 @@ let cachedValue = async (cache: t, ~namespace, path, ~encode, ~decode, load) => 
       },
     )
     cache.changed = true
-    cache.used = cache.used->Array.concat([key])
+    cache.used->Dict.set(key, true)
     value
   }
 
   switch cache.entries->Dict.get(key) {
   | Some(entry) if entry.mtimeMs == info->mtimeMs && entry.size == info->size =>
-    cache.used = cache.used->Array.concat([key])
+    cache.used->Dict.set(key, true)
     switch decode(entry.value) {
     | Some(value) => value
     | None => await refresh()

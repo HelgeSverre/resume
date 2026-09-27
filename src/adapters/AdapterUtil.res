@@ -2,7 +2,25 @@
 
 open NodeFs
 
-@val external all: array<promise<'a>> => promise<array<'a>> = "Promise.all"
+@val external promiseAll: array<promise<'a>> => promise<array<'a>> = "Promise.all"
+
+// Keep file reads bounded: a large history can otherwise load thousands of
+// multi-megabyte session files into memory at once.
+let mapBounded = async (items: array<'a>, fn: 'a => promise<'b>): array<'b> => {
+  let results = []
+  let size = 8
+  let offset = ref(0)
+  while offset.contents < items->Array.length {
+    let endIndex = min(offset.contents + size, items->Array.length)
+    let chunk = items->Array.slice(~start=offset.contents, ~end=endIndex)
+    let values = await promiseAll(chunk->Array.map(fn))
+    values->Array.forEach(value => results->Array.push(value))
+    offset.contents = endIndex
+  }
+  results
+}
+
+let all = async promises => await promiseAll(promises)
 
 let walkFiles = async (root, predicate) => {
   let rootExists = await exists(root)
@@ -28,6 +46,36 @@ let walkFiles = async (root, predicate) => {
     }
     out
   }
+}
+
+let collectCachedSessions = async (~root, ~matches, ~namespace, ~parse, cache) => {
+  let files = await walkFiles(root, matches)
+  let skipped = ref(0)
+  let sessions = await mapBounded(files, async path => {
+    try {
+      Some(
+        await Cache.cachedValue(
+          cache,
+          ~namespace,
+          path,
+          ~encode=Session.encode,
+          ~decode=Session.decode,
+          parse,
+        ),
+      )
+    } catch {
+    | _ => {
+        skipped.contents = skipped.contents + 1
+        None
+      }
+    }
+  })
+  if skipped.contents > 0 {
+    Console.error(
+      `Warning: skipped ${Int.toString(skipped.contents)} unreadable ${namespace} files`,
+    )
+  }
+  sessions->Array.filterMap(session => session)
 }
 
 let splitLines = text => text->String.split("\n")

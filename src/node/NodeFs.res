@@ -16,17 +16,11 @@ type stats
 external readFile: (string, string) => promise<string> = "readFile"
 
 @module("node:fs/promises")
-external readdir: string => promise<array<string>> = "readdir"
-
-@module("node:fs/promises")
 external readdirWithFileTypes: (string, {"withFileTypes": bool}) => promise<array<dirent>> =
   "readdir"
 
 @module("node:fs/promises")
 external stat: string => promise<stats> = "stat"
-
-@module("node:fs/promises")
-external mkdir: string => promise<unit> = "mkdir"
 
 @module("node:fs/promises")
 external mkdirWithRecursive: (string, {"recursive": bool}) => promise<unit> = "mkdir"

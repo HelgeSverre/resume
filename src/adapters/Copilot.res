@@ -32,21 +32,11 @@ let parseCopilotFile = async path => {
 }
 
 let collectCopilot = async (home, cache) => {
-  let files = await AdapterUtil.walkFiles(
-    NodePath.joinMany([home, ".copilot", "session-state"]),
-    path => NodePath.basename(path, "") == "events.jsonl",
-  )
-
-  await AdapterUtil.all(
-    files->Array.map(async path => {
-      await Cache.cachedValue(
-        cache,
-        ~namespace="copilot-session-v1",
-        path,
-        ~encode=Session.encode,
-        ~decode=Session.decode,
-        parseCopilotFile,
-      )
-    }),
+  await AdapterUtil.collectCachedSessions(
+    ~root=NodePath.joinMany([home, ".copilot", "session-state"]),
+    ~matches=path => NodePath.basename(path, "") == "events.jsonl",
+    ~namespace="copilot-session-v1",
+    ~parse=parseCopilotFile,
+    cache,
   )
 }

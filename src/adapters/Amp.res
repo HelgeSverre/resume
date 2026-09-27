@@ -68,20 +68,18 @@ let collectAmp = async (home, cache) => {
   )
 
   let sessions = []
-  let _ = await AdapterUtil.all(
-    files->Array.map(async path => {
-      switch await Cache.cachedValue(
-        cache,
-        ~namespace="amp-thread-v1",
-        path,
-        ~encode=Session.encodeOption,
-        ~decode=Session.decodeOption,
-        parseAmpFile,
-      ) {
-      | Some(session) => sessions->Array.push(session)
-      | None => ()
-      }
-    }),
-  )
+  let _ = await AdapterUtil.mapBounded(files, async path => {
+    switch await Cache.cachedValue(
+      cache,
+      ~namespace="amp-thread-v1",
+      path,
+      ~encode=Session.encodeOption,
+      ~decode=Session.decodeOption,
+      parseAmpFile,
+    ) {
+    | Some(session) => sessions->Array.push(session)
+    | None => ()
+    }
+  })
   sessions
 }

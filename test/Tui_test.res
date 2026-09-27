@@ -156,6 +156,26 @@ test("update Down/Up moves the selection within bounds", () => {
   equal(state.selected, 1)
 })
 
+test("mouse wheel moves the selection by three rows and clamps at the ends", () => {
+  let visible = [claudeSession, codexSession, ampSession]
+  let state = mkState(visible)
+  let _ = Tui.update(state, Tui.Wheel(3), ~visible, ~rowsHeight=2)
+  equal(state.selected, 2)
+  equal(state.offset, 1)
+  let _ = Tui.update(state, Tui.Wheel(-3), ~visible, ~rowsHeight=2)
+  equal(state.selected, 0)
+  equal(state.offset, 0)
+})
+
+test("SGR mouse reports only scroll for wheel press events", () => {
+  equal(Tui.wheelDelta("64;10;20M"), Some(-3))
+  equal(Tui.wheelDelta("65;10;20M"), Some(3))
+  equal(Tui.wheelDelta("68;10;20M"), Some(-3))
+  equal(Tui.wheelDelta("66;10;20M"), None)
+  equal(Tui.wheelDelta("64;10;20m"), None)
+  equal(Tui.wheelDelta("0;10;20M"), None)
+})
+
 test("update Enter submits the selected session", () => {
   let visible = [claudeSession, codexSession, ampSession]
   let state = mkState(visible)

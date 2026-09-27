@@ -4,12 +4,15 @@ type parsed = {
 }
 
 let encodeParsed = (p: parsed): JSON.t =>
-  Codec.object([("messageCount", Codec.int(p.messageCount)), ("preview", Codec.string(p.preview))])
+  JsonUtil.object([
+    ("messageCount", JsonUtil.int(p.messageCount)),
+    ("preview", JsonUtil.string(p.preview)),
+  ])
 
 let decodeParsed = json =>
-  json->Codec.asObject(obj => Some({
-    messageCount: obj->Codec.getInt("messageCount")->Option.getOr(0),
-    preview: obj->Codec.getString("preview")->Option.getOr(""),
+  json->JsonUtil.asObject(obj => Some({
+    messageCount: obj->JsonUtil.getInt("messageCount")->Option.getOr(0),
+    preview: obj->JsonUtil.getString("preview")->Option.getOr(""),
   }))
 
 let parseJunieEvents = async eventsPath => {
@@ -66,42 +69,40 @@ let collectJunie = async (home, cache) => {
     let sessions = []
     let rows = await AdapterUtil.readJsonl(indexPath)
 
-    let _ = await AdapterUtil.all(
-      rows->Array.map(async row => {
-        switch JsonUtil.stringAt(row, ["sessionId"]) {
-        | Some(sessionId) =>
-          let eventsPath = NodePath.joinMany([sessionsDir, sessionId, "events.jsonl"])
-          let parsed = if await NodeFs.exists(eventsPath) {
-            await Cache.cachedValue(
-              cache,
-              ~namespace="junie-events-v1",
-              eventsPath,
-              ~encode=encodeParsed,
-              ~decode=decodeParsed,
-              parseJunieEvents,
-            )
-          } else {
-            {messageCount: 0, preview: ""}
-          }
-
-          let taskName = JsonUtil.stringAt(row, ["taskName"])->Option.getOr(sessionId)
-          let updatedAt = JsonUtil.msAt(row, ["updatedAt"])
-          let projectDir = JsonUtil.stringAt(row, ["projectDir"])
-
-          sessions->Array.push({
-            Session.id: sessionId,
-            tool: Junie,
-            title: JsonUtil.compact(Some(taskName), ~fallback=sessionId),
-            messageCount: parsed.messageCount,
-            updatedAtMs: updatedAt,
-            cwd: projectDir,
-            path: eventsPath,
-            preview: parsed.preview,
-          })
-        | None => ()
+    let _ = await AdapterUtil.mapBounded(rows, async row => {
+      switch JsonUtil.stringAt(row, ["sessionId"]) {
+      | Some(sessionId) =>
+        let eventsPath = NodePath.joinMany([sessionsDir, sessionId, "events.jsonl"])
+        let parsed = if await NodeFs.exists(eventsPath) {
+          await Cache.cachedValue(
+            cache,
+            ~namespace="junie-events-v1",
+            eventsPath,
+            ~encode=encodeParsed,
+            ~decode=decodeParsed,
+            parseJunieEvents,
+          )
+        } else {
+          {messageCount: 0, preview: ""}
         }
-      }),
-    )
+
+        let taskName = JsonUtil.stringAt(row, ["taskName"])->Option.getOr(sessionId)
+        let updatedAt = JsonUtil.msAt(row, ["updatedAt"])
+        let projectDir = JsonUtil.stringAt(row, ["projectDir"])
+
+        sessions->Array.push({
+          Session.id: sessionId,
+          tool: Junie,
+          title: JsonUtil.compact(Some(taskName), ~fallback=sessionId),
+          messageCount: parsed.messageCount,
+          updatedAtMs: updatedAt,
+          cwd: projectDir,
+          path: eventsPath,
+          preview: parsed.preview,
+        })
+      | None => ()
+      }
+    })
 
     sessions
   }

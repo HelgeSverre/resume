@@ -37,21 +37,11 @@ let parsePiFile = async path => {
 }
 
 let collectPi = async (home, cache) => {
-  let files = await AdapterUtil.walkFiles(
-    NodePath.joinMany([home, ".pi", "agent", "sessions"]),
-    path => path->String.endsWith(".jsonl"),
-  )
-
-  await AdapterUtil.all(
-    files->Array.map(async path => {
-      await Cache.cachedValue(
-        cache,
-        ~namespace="pi-session-v1",
-        path,
-        ~encode=Session.encode,
-        ~decode=Session.decode,
-        parsePiFile,
-      )
-    }),
+  await AdapterUtil.collectCachedSessions(
+    ~root=NodePath.joinMany([home, ".pi", "agent", "sessions"]),
+    ~matches=path => path->String.endsWith(".jsonl"),
+    ~namespace="pi-session-v1",
+    ~parse=parsePiFile,
+    cache,
   )
 }

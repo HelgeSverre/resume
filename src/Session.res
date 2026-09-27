@@ -1,4 +1,18 @@
-type tool = Claude | Codex | Junie | Pi | Amp | OpenCode | Kimi | Copilot | Antigravity
+type tool =
+  | Claude
+  | Codex
+  | Junie
+  | Pi
+  | Amp
+  | OpenCode
+  | Kimi
+  | Copilot
+  | Antigravity
+  | Gemini
+  | Vibe
+  | Kilo
+  | Hermes
+  | Devin
 
 type t = {
   id: string,
@@ -37,6 +51,11 @@ let toolToString = tool =>
   | Kimi => "Kimi"
   | Copilot => "Copilot"
   | Antigravity => "Antigravity"
+  | Gemini => "Gemini"
+  | Vibe => "Vibe"
+  | Kilo => "Kilo"
+  | Hermes => "Hermes"
+  | Devin => "Devin"
   }
 
 let toolName = tool =>
@@ -50,6 +69,11 @@ let toolName = tool =>
   | Kimi => "kimi"
   | Copilot => "copilot"
   | Antigravity => "antigravity"
+  | Gemini => "gemini"
+  | Vibe => "vibe"
+  | Kilo => "kilo"
+  | Hermes => "hermes"
+  | Devin => "devin"
   }
 
 let toolFromName = name =>
@@ -63,20 +87,12 @@ let toolFromName = name =>
   | "kimi" => Some(Kimi)
   | "copilot" => Some(Copilot)
   | "antigravity" => Some(Antigravity)
+  | "gemini" => Some(Gemini)
+  | "vibe" => Some(Vibe)
+  | "kilo" => Some(Kilo)
+  | "hermes" => Some(Hermes)
+  | "devin" => Some(Devin)
   | _ => None
-  }
-
-let resumeCommand = session =>
-  switch session.tool {
-  | Claude => "claude --resume " ++ session.id
-  | Codex => "codex resume " ++ session.id
-  | Junie => "junie --resume --session-id " ++ session.id
-  | Pi => "pi --session " ++ session.id
-  | Amp => "amp threads continue " ++ session.id
-  | OpenCode => "opencode --session " ++ session.id
-  | Kimi => "kimi --session " ++ session.id
-  | Copilot => "copilot --resume " ++ session.id
-  | Antigravity => "agy --conversation " ++ session.id
   }
 
 let shellQuote = value => {
@@ -84,6 +100,26 @@ let shellQuote = value => {
   switch isSafeShellWord(value) {
   | true => value
   | false => "'" ++ safe ++ "'"
+  }
+}
+
+let resumeCommand = session => {
+  let id = shellQuote(session.id)
+  switch session.tool {
+  | Claude => "claude --resume " ++ id
+  | Codex => "codex resume " ++ id
+  | Junie => "junie --resume --session-id " ++ id
+  | Pi => "pi --session " ++ id
+  | Amp => "amp threads continue " ++ id
+  | OpenCode => "opencode --session " ++ id
+  | Kimi => "kimi --session " ++ id
+  | Copilot => "copilot --resume " ++ id
+  | Antigravity => "agy --conversation " ++ id
+  | Gemini => "gemini --session-file " ++ shellQuote(session.path)
+  | Vibe => "vibe --resume " ++ id
+  | Kilo => "kilo --session " ++ id
+  | Hermes => "hermes --resume " ++ id
+  | Devin => "devin --resume " ++ id
   }
 }
 
