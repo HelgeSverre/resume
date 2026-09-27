@@ -1,6 +1,6 @@
 {
   "name": "@helgesverre/resume",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Search and resume local coding-agent sessions across many tools from one searchable TUI.",
   "keywords": [
     "cli",
@@ -19,7 +19,7 @@
   "author": "Helge Sverre <helge.sverre@gmail.com>",
   "type": "module",
   "bin": {
-    "resume": "./dist/resume.mjs"
+    "resume": "dist/resume.mjs"
   },
   "files": [
     "dist"
@@ -32,6 +32,7 @@
     "clean": "rescript clean",
     "bundle": "esbuild lib/es6/src/Main.mjs --bundle --platform=node --format=esm --target=node22 --external:clipboardy --outfile=dist/resume.mjs --banner:js='#!/usr/bin/env node' && chmod +x dist/resume.mjs",
     "dist": "npm run build && npm run bundle",
+    "prepublishOnly": "npm test",
     "prepack": "npm run dist",
     "test": "npm run build && node --test lib/es6/test/*.mjs",
     "start": "node dist/resume.mjs",

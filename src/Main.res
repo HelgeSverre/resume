@@ -76,7 +76,7 @@ let main = async () => {
     if !(stdin->isTTY) || !(stdout->isTTY) {
       printTsv(sessions)
     } else {
-      await Tui.runPicker(~copyToClipboard, sessions)
+      await Tui.runPicker(~copyToClipboard, ~version=await readVersion(), sessions)
     }
   }
 }

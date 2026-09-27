@@ -1,10 +1,9 @@
 # VHS tape for the `resume` feature showcase GIF.
 #
-#   render:  DYLD_FALLBACK_LIBRARY_PATH=/opt/homebrew/Cellar/x265/4.1/lib \
-#              vhs demo/resume.tape
+#   render: vhs demo/resume.tape
 #
 # The hidden setup block points HOME at a freshly generated tree of synthetic
-# sessions (demo/make-fixtures.mjs) so the demo shows all nine supported tools
+# sessions (demo/make-fixtures.mjs) so the demo shows several supported tools
 # without touching any real session history.
 #
 # The interactive picker leads (it's the star), and the CLI flags follow.
@@ -28,15 +27,13 @@ Set Framerate 30
 # This environment exports NO_COLOR / FORCE_COLOR=0; clear them so the picker
 # renders its blue branding and cyan legend in the recording.
 Hide
-Type 'export PATH="/Users/helge/.nvm/versions/node/v22.22.3/bin:$PATH"'
-Enter
 Type 'unset NO_COLOR CLICOLOR CLICOLOR_FORCE FORCE_COLOR; export TERM=xterm-256color'
 Enter
-Type 'cd /Users/helge/code/resume'
+Type 'cd "$(git rev-parse --show-toplevel)"'
 Enter
-Type 'shopt -s expand_aliases; alias resume="node /Users/helge/code/resume/dist/resume.mjs"'
+Type 'shopt -s expand_aliases; alias resume="node $PWD/dist/resume.mjs"'
 Enter
-Type 'export HOME="/Users/helge/code/resume/demo/home"'
+Type 'export HOME="$PWD/demo/home"'
 Enter
 Type 'node demo/make-fixtures.mjs "$HOME"'
 Enter

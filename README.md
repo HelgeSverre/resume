@@ -132,6 +132,7 @@ ReScript compiles to `lib/`, and [esbuild](https://esbuild.github.io/) bundles `
 `demo/resume.gif` is recorded with [VHS](https://github.com/charmbracelet/vhs). It runs against a throwaway tree of synthetic sessions so the recording never shows real history. To regenerate it:
 
 ```sh
+npm run dist
 vhs demo/resume.tape   # writes demo/resume.gif
 ```
 

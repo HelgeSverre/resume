@@ -85,6 +85,7 @@ let ampSession = {...baseSession, id: "a1", tool: Amp, title: "Investigate flaky
 
 let mkState = sessions => {
   Tui.sessions,
+  version: "1.0.0",
   tools: Tui.distinctTools(sessions),
   query: "",
   selected: 0,
@@ -94,6 +95,11 @@ let mkState = sessions => {
   expanded: false,
   agentFilter: None,
 }
+
+test("picker branding uses the supplied package version", () => {
+  let state = {...mkState([claudeSession]), version: "9.8.7"}
+  equal(Tui.brandingLine(state, ~width=80)->stripAll->String.includes("resume v9.8.7"), true)
+})
 
 test("keyOfEvent treats a bare 't' as searchable text, ctrl+t as toggle", () => {
   deepEqual(Tui.keyOfEvent("t", {}), Tui.Insert("t"))

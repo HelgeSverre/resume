@@ -7,20 +7,23 @@ external equal: ('a, 'a) => unit = "equal"
 @module("node:assert/strict")
 external deepEqual: ('a, 'a) => unit = "deepEqual"
 
+@new external makeDate: float => 'date = "Date"
+@send external toLocaleString: ('date, string, {"hour12": bool}) => string = "toLocaleString"
+
 let baseSession = {
   Session.id: "abc-123",
   tool: Claude,
   title: "Implement parser",
   messageCount: 7,
   updatedAtMs: 1770000000000.,
-  cwd: Some("/Users/helge/code/demo"),
+  cwd: Some("/example/project"),
   path: "/tmp/session.jsonl",
   preview: "last useful message",
 }
 
 test("builds a cwd-restoring command for Claude sessions", () => {
   let command = Session.copyCommand(baseSession)
-  equal(command, "cd /Users/helge/code/demo && claude --resume abc-123")
+  equal(command, "cd /example/project && claude --resume abc-123")
 })
 
 test("shell-quotes cwd paths containing single quotes", () => {
@@ -46,61 +49,61 @@ test("shell-quotes Gemini session file paths", () => {
 test("uses the correct resume command for each supported tool", () => {
   equal(
     Session.copyCommand({...baseSession, tool: Codex}),
-    "cd /Users/helge/code/demo && codex resume abc-123",
+    "cd /example/project && codex resume abc-123",
   )
   equal(
     Session.copyCommand({...baseSession, tool: Junie}),
-    "cd /Users/helge/code/demo && junie --resume --session-id abc-123",
+    "cd /example/project && junie --resume --session-id abc-123",
   )
   equal(
     Session.copyCommand({...baseSession, tool: Pi}),
-    "cd /Users/helge/code/demo && pi --session abc-123",
+    "cd /example/project && pi --session abc-123",
   )
   equal(
     Session.copyCommand({...baseSession, tool: Amp}),
-    "cd /Users/helge/code/demo && amp threads continue abc-123",
+    "cd /example/project && amp threads continue abc-123",
   )
   equal(
     Session.copyCommand({...baseSession, tool: OpenCode}),
-    "cd /Users/helge/code/demo && opencode --session abc-123",
+    "cd /example/project && opencode --session abc-123",
   )
   equal(
     Session.copyCommand({...baseSession, tool: Kimi}),
-    "cd /Users/helge/code/demo && kimi --session abc-123",
+    "cd /example/project && kimi --session abc-123",
   )
   equal(
     Session.copyCommand({...baseSession, tool: Copilot}),
-    "cd /Users/helge/code/demo && copilot --resume abc-123",
+    "cd /example/project && copilot --resume abc-123",
   )
   equal(
     Session.copyCommand({...baseSession, tool: Antigravity}),
-    "cd /Users/helge/code/demo && agy --conversation abc-123",
+    "cd /example/project && agy --conversation abc-123",
   )
   equal(
     Session.copyCommand({...baseSession, tool: Gemini}),
-    "cd /Users/helge/code/demo && gemini --session-file /tmp/session.jsonl",
+    "cd /example/project && gemini --session-file /tmp/session.jsonl",
   )
   equal(
     Session.copyCommand({...baseSession, tool: Vibe}),
-    "cd /Users/helge/code/demo && vibe --resume abc-123",
+    "cd /example/project && vibe --resume abc-123",
   )
   equal(
     Session.copyCommand({...baseSession, tool: Kilo}),
-    "cd /Users/helge/code/demo && kilo --session abc-123",
+    "cd /example/project && kilo --session abc-123",
   )
   equal(
     Session.copyCommand({...baseSession, tool: Hermes}),
-    "cd /Users/helge/code/demo && hermes --resume abc-123",
+    "cd /example/project && hermes --resume abc-123",
   )
   equal(
     Session.copyCommand({...baseSession, tool: Devin}),
-    "cd /Users/helge/code/demo && devin --resume abc-123",
+    "cd /example/project && devin --resume abc-123",
   )
 })
 
 test("filters sessions by title, tool, cwd, id, and preview text", () => {
   equal(Session.matchesQuery(baseSession, "claude parser"), true)
-  equal(Session.matchesQuery(baseSession, "demo useful"), true)
+  equal(Session.matchesQuery(baseSession, "project useful"), true)
   equal(Session.matchesQuery(baseSession, "junie"), false)
 })
 
@@ -110,7 +113,9 @@ test("formats relative time from milliseconds", () => {
 })
 
 test("formats exact local timestamps without timezone noise", () => {
-  equal(Session.exactTimestamp(1770000000000.), "2026-02-02 03:40:00")
+  let timestamp = 1770000000000.
+  let expected = makeDate(timestamp)->toLocaleString("sv-SE", {"hour12": false})
+  equal(Session.exactTimestamp(timestamp), expected)
 })
 
 test("encodes the tool as its lowercase cli name", () => {

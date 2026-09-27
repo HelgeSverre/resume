@@ -40,6 +40,7 @@ type metrics = {
 
 type pickerState = {
   mutable sessions: array<Session.t>,
+  version: string,
   // Distinct tools present in `sessions`, in canonical order; used by ctrl+a.
   tools: array<Session.tool>,
   mutable query: string,
@@ -133,8 +134,6 @@ let brandVersion = 74 // brighter blue
 let legendKeyColor = 117 // cyan
 let legendTextColor = 245 // light grey
 let placeholderColor = 240 // faint grey
-
-let version = "v0.1.0"
 
 let toolColor = (tool, text) => {
   let code = switch tool {
@@ -540,9 +539,10 @@ let update = (state: pickerState, key, ~visible: array<Session.t>, ~rowsHeight) 
   }
 }
 
-// Top branding line: dimmed-blue "resume v0.1.0", then the active agent filter
+// Top branding line: the installed package version, then the active agent filter
 // and any transient notice.
 let brandingLine = (state: pickerState, ~width) => {
+  let version = "v" ++ state.version
   let agent = switch state.agentFilter {
   | None => dim("all agents")
   | Some(tool) => toolColor(tool, Session.toolName(tool))
@@ -765,12 +765,13 @@ let wheelDelta = report => {
 
 // `copyToClipboard` is injected by the caller (Main owns the clipboardy FFI so
 // Tui stays free of that dependency and remains testable without a TTY).
-let runPicker = async (~copyToClipboard, sessions) => {
+let runPicker = async (~copyToClipboard, ~version, sessions) => {
   if sessions->Array.length == 0 {
     Console.log("No resumable sessions found.")
   } else {
     let state = {
       sessions: SessionList.mergeAndSort(sessions),
+      version,
       tools: distinctTools(sessions),
       query: "",
       selected: 0,

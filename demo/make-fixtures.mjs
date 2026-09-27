@@ -1,20 +1,19 @@
 // Generates a clean, synthetic HOME tree of coding-agent sessions so the VHS
-// demo can showcase `resume` across all nine supported tools without exposing
+// demo can showcase several supported tools without exposing
 // any real session data. Timestamps are computed relative to "now" at run
 // time, so the picker always shows fresh, natural-looking ages in the GIF.
 //
 //   node demo/make-fixtures.mjs <home-dir>
 //
-// Each session's `cwd` is a fake `/Users/dev/code/<project>` path (independent
-// of where the fixture files live) so the printed resume commands stay short
-// and clean. The picker treats every printable character as filter input
+// Each session's `cwd` points at a synthetic project under the fixture home.
+// The picker treats every printable character as filter input
 // (toggles are bound to Ctrl-modified keys), so demo search terms are free to
 // contain any letter.
 
 import { mkdir, rm, utimes, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 
-const home = process.argv[2];
+const home = process.argv[2] && resolve(process.argv[2]);
 if (!home) {
   console.error("usage: node demo/make-fixtures.mjs <home-dir>");
   process.exit(1);
@@ -27,7 +26,7 @@ const DAY = 24 * HOUR;
 const iso = (ms) => new Date(ms).toISOString();
 
 // One spec per session. `age` is how long ago it was last touched.
-// `cwd` becomes /Users/dev/code/<project>.
+// `cwd` becomes <fixture-home>/projects/<project>.
 const SESSIONS = [
   {
     tool: "Claude",
@@ -184,7 +183,7 @@ const SESSIONS = [
   },
 ];
 
-const cwdOf = (s) => `/Users/dev/code/${s.project}`;
+const cwdOf = (s) => join(home, "projects", s.project);
 const updatedOf = (s) => now - s.age;
 
 async function writeFileEnsured(path, contents) {
@@ -438,6 +437,7 @@ async function main() {
   const antigravityCwd = {};
 
   for (const s of SESSIONS) {
+    await mkdir(cwdOf(s), { recursive: true });
     switch (s.tool) {
       case "Claude":
         await writeClaude(s);
