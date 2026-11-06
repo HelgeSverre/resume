@@ -1,6 +1,6 @@
 # Publishing releases
 
-Releases use npm trusted publishing from `.github/workflows/release.yml`.
+Releases use npm trusted publishing from `.github/workflows/resume.yaml`.
 There is no npm token to store or rotate in GitHub Actions.
 
 ## One-time npm setup
@@ -12,7 +12,7 @@ trusted publisher with these values:
 | --- | --- |
 | Organization or user | `HelgeSverre` |
 | Repository | `resume` |
-| Workflow filename | `release.yml` |
+| Workflow filename | `resume.yaml` |
 | Environment name | Leave empty |
 | Direct publishing (`npm publish`) | Allowed |
 | Dist-tag management | Not needed |
@@ -43,4 +43,7 @@ tag; stable releases use `latest`.
 Test a candidate with `npx @helgesverre/resume@next`. To release it as stable,
 change the version to `1.1.0` in a new reviewed commit, then push `v1.1.0`.
 Published npm versions cannot be overwritten. If a workflow fails after the
-publish step starts, check npm before retrying.
+publish step starts, check npm before retrying. To retry an unpublished version
+with the current workflow, open the Release workflow in GitHub Actions, select
+Run workflow on `main`, and enter its existing version tag (for example,
+`v1.1.0-rc.1`). It checks out that tag and repeats the same validation and tests.
