@@ -7,7 +7,7 @@ let registry = [
   {tool: Claude, collect: Claude.collectClaude},
   {tool: Codex, collect: Codex.collectCodex},
   {tool: Amp, collect: Amp.collectAmp},
-  {tool: OpenCode, collect: (home, _cache) => OpenCode.collectOpenCode(home)},
+  {tool: OpenCode, collect: OpenCode.collectOpenCode},
   {tool: Kimi, collect: Kimi.collectKimi},
   {tool: Copilot, collect: Copilot.collectCopilot},
   {tool: Junie, collect: Junie.collectJunie},
@@ -18,6 +18,7 @@ let registry = [
   {tool: Kilo, collect: (home, _cache) => SqliteAgents.collectKilo(home)},
   {tool: Hermes, collect: (home, _cache) => SqliteAgents.collectHermes(home)},
   {tool: Devin, collect: (home, _cache) => SqliteAgents.collectDevin(home)},
+  {tool: Pool, collect: Pool.collectPool},
 ]
 
 // One failing adapter must never take down the whole listing.
@@ -25,14 +26,19 @@ let collectOne = async (home, cache, adapter) =>
   switch await adapter.collect(home, cache) {
   | sessions => sessions
   | exception _ =>
-    Console.error(`Warning: ${Session.toolName(adapter.tool)} adapter failed`)
+    Diagnostics.warn(`Warning: ${Session.toolName(adapter.tool)} adapter failed`)
     []
   }
 
-let collectSessionsFromHome = async home => {
+let collectSessionsFromHome = async (~onSessions=_ => (), home) => {
+  ScanControl.start()
   let cache = await Cache.loadCache(home)
   let groups = await AdapterUtil.all(
-    registry->Array.map(adapter => collectOne(home, cache, adapter)),
+    registry->Array.map(async adapter => {
+      let sessions = await collectOne(home, cache, adapter)
+      onSessions(sessions)
+      sessions
+    }),
   )
   await Cache.saveCache(cache)
   groups->Array.flat

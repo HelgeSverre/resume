@@ -26,10 +26,9 @@ let collectKimi = async (home, cache) => {
   if !indexExists {
     []
   } else {
-    let sessions = []
-    let rows = await AdapterUtil.readJsonl(indexPath)
+    let rows = await AdapterUtil.readIndex(indexPath)
 
-    let _ = await AdapterUtil.mapBounded(rows, async row => {
+    let sessions = await AdapterUtil.collectSome(~label="Kimi session", rows, async row => {
       let sessionId = JsonUtil.stringAt(row, ["sessionId"])
       let sessionDir = JsonUtil.stringAt(row, ["sessionDir"])
 
@@ -60,7 +59,7 @@ let collectKimi = async (home, cache) => {
         let createdAt = stateJson->Option.mapOr(0.0, j => JsonUtil.msAt(j, ["createdAt"]))
         let workDir = JsonUtil.stringAt(row, ["workDir"])
 
-        sessions->Array.push({
+        Some({
           Session.id,
           tool: Kimi,
           title: JsonUtil.compact(Some(title == "" ? preview : title), ~fallback=id),
@@ -73,7 +72,7 @@ let collectKimi = async (home, cache) => {
           path: wirePath,
           preview,
         })
-      | _ => ()
+      | _ => None
       }
     })
 

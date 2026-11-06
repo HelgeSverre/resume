@@ -2,7 +2,7 @@ let collectVibe = async home => {
   let root = NodePath.joinMany([home, ".vibe", "logs", "session"])
   let files = await AdapterUtil.walkFiles(root, path => NodePath.basename(path, "") == "meta.json")
 
-  let groups = await AdapterUtil.mapBounded(files, async metaPath => {
+  let groups = await AdapterUtil.collectSome(~label="Vibe session", files, async metaPath => {
     switch await Cache.readJson(metaPath) {
     | None => None
     | Some(meta) =>
@@ -46,5 +46,5 @@ let collectVibe = async home => {
       }
     }
   })
-  groups->Array.filterMap(group => group)
+  groups
 }

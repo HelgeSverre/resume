@@ -35,33 +35,43 @@ let parsedDecoder = D.object(field => {
 
 let decodeParsed = json => JsonUtil.decode(json, parsedDecoder)
 
+let rolloutId = path =>
+  NodePath.basename(path, ".jsonl")->String.replaceRegExp(/^.*-([0-9a-f]{8}-[0-9a-f-]{27})$/i, "$1")
+
 let parseCodexFile = async path => {
-  let lines = AdapterUtil.splitLines(await NodeFs.readFile(path, "utf8"))
+  let id = ref(None)
+  let cwd = ref(None)
+  let messageCount = ref(0)
+  let updatedAtMs = ref(0.0)
+  let preview = ref("")
 
-  let metaRow = AdapterUtil.firstParsedLine(lines, line =>
-    JsonUtil.hasJsonField(line, "type", "session_meta")
-  )
-  let id = switch metaRow->Option.flatMap(j => JsonUtil.stringAt(j, ["payload", "id"])) {
-  | Some(id) => id
-  | None => {
-      let base = NodePath.basename(path, ".jsonl")
-      base->String.replaceRegExp(/^rollout-[^-]+-/, "")->String.replaceRegExp(/\\.jsonl$/, "")
+  await JsonLines.forEach(path, json => {
+    let timestamp = JsonUtil.msAt(json, ["timestamp"])
+    if timestamp > 0.0 {
+      updatedAtMs.contents = timestamp
     }
-  }
-
-  let isMessageLine = line =>
-    JsonUtil.hasJsonField(line, "type", "response_item") && AdapterUtil.isUserOrAssistantLine(line)
-
-  let previewRow = AdapterUtil.lastParsedLine(lines, isMessageLine)
-  let previewText = previewRow->Option.mapOr("", j => JsonUtil.textAt(j, ["payload", "content"]))
+    switch JsonUtil.stringAt(json, ["type"]) {
+    | Some("session_meta") if id.contents == None =>
+      id.contents = JsonUtil.stringAt(json, ["payload", "id"])
+      cwd.contents = JsonUtil.stringAt(json, ["payload", "cwd"])
+    | Some("response_item") =>
+      switch JsonUtil.stringAt(json, ["payload", "role"]) {
+      | Some("user") | Some("assistant") =>
+        messageCount.contents = messageCount.contents + 1
+        preview.contents = JsonUtil.textAt(json, ["payload", "content"])->JsonUtil.preview
+      | _ => ()
+      }
+    | _ => ()
+    }
+  })
 
   {
-    id,
-    messageCount: AdapterUtil.countLines(lines, isMessageLine),
-    updatedAtMs: AdapterUtil.lastTimestampFromLines(lines),
-    cwd: metaRow->Option.flatMap(j => JsonUtil.stringAt(j, ["payload", "cwd"])),
+    id: id.contents->Option.getOr(rolloutId(path)),
+    messageCount: messageCount.contents,
+    updatedAtMs: updatedAtMs.contents,
+    cwd: cwd.contents,
     path,
-    preview: previewText,
+    preview: preview.contents,
   }
 }
 
@@ -71,7 +81,7 @@ let collectCodex = async (home, cache) => {
   let index = Dict.make()
 
   if await NodeFs.exists(indexPath) {
-    let rows = await AdapterUtil.readJsonl(indexPath)
+    let rows = await AdapterUtil.readIndex(indexPath)
     rows->Array.forEach(row => {
       switch JsonUtil.stringAt(row, ["id"]) {
       | Some(id) =>
@@ -96,13 +106,14 @@ let collectCodex = async (home, cache) => {
     ),
   )
 
-  let byId = Dict.make()
+  let byId: Dict.t<Session.t> = Dict.make()
+  let parsedTimes: Dict.t<float> = Dict.make()
 
   let _ = await AdapterUtil.mapBounded(sessionFiles, async path => {
     try {
       let parsed = await Cache.cachedValue(
         cache,
-        ~namespace="codex-file-v1",
+        ~namespace="codex-file-v2",
         path,
         ~encode=encodeParsed,
         ~decode=decodeParsed,
@@ -120,21 +131,26 @@ let collectCodex = async (home, cache) => {
       | None => parsed.updatedAtMs
       }
 
-      byId->Dict.set(
-        parsed.id,
-        {
-          Session.id: parsed.id,
-          tool: Codex,
-          title,
-          messageCount: parsed.messageCount,
-          updatedAtMs,
-          cwd: parsed.cwd,
-          path: parsed.path,
-          preview: parsed.preview,
-        },
-      )
+      let candidate = {
+        Session.id: parsed.id,
+        tool: Codex,
+        title,
+        messageCount: parsed.messageCount,
+        updatedAtMs,
+        cwd: parsed.cwd,
+        path: parsed.path,
+        preview: parsed.preview,
+      }
+      // Index timestamps apply to both copies; compare their own transcript
+      // timestamps so an index rename cannot mask a newer active rollout.
+      switch parsedTimes->Dict.get(parsed.id) {
+      | Some(existing) if existing >= parsed.updatedAtMs => ()
+      | _ =>
+        parsedTimes->Dict.set(parsed.id, parsed.updatedAtMs)
+        byId->Dict.set(parsed.id, candidate)
+      }
     } catch {
-    | _ => Console.error("Warning: skipped an unreadable Codex session")
+    | _ => Diagnostics.warn("Warning: skipped an unreadable Codex session")
     }
   })
 

@@ -1,6 +1,6 @@
 {
   "name": "@helgesverre/resume",
-  "version": "1.0.0",
+  "version": "1.1.0-rc.1",
   "description": "Search and resume local coding-agent sessions across many tools from one searchable TUI.",
   "keywords": [
     "cli",
@@ -30,16 +30,21 @@
   "scripts": {
     "build": "rescript",
     "clean": "rescript clean",
-    "bundle": "esbuild lib/es6/src/Main.mjs --bundle --platform=node --format=esm --target=node22 --external:clipboardy --outfile=dist/resume.mjs --banner:js='#!/usr/bin/env node' && chmod +x dist/resume.mjs",
+    "bundle": "esbuild lib/es6/src/Main.mjs --bundle --platform=node --format=esm --target=node22 --external:clipboardy --external:cross-spawn --outfile=dist/resume.mjs --banner:js='#!/usr/bin/env node' && esbuild lib/es6/src/node/NodeSqliteWorker.mjs --bundle --platform=node --format=esm --target=node22 --outfile=dist/NodeSqliteWorker.mjs && chmod +x dist/resume.mjs",
     "dist": "npm run build && npm run bundle",
     "prepublishOnly": "npm test",
     "prepack": "npm run dist",
-    "test": "npm run build && node --test lib/es6/test/*.mjs",
+    "test": "npm run dist && node --test lib/es6/test/*_test.mjs",
     "start": "node dist/resume.mjs",
-    "format": "rescript format --verbose"
+    "format": "rescript format --verbose",
+    "benchmark": "npm run build && node lib/es6/scripts/Benchmark.mjs",
+    "snapshot-history": "npm run build && node lib/es6/scripts/SnapshotHistory.mjs",
+    "demo:fixtures": "npm run build && node lib/es6/demo/MakeFixtures.mjs"
   },
   "dependencies": {
-    "clipboardy": "^5.3.1"
+    "clipboardy": "^5.3.1",
+    "cross-spawn": "^7.0.6",
+    "string-width": "^8.3.0"
   },
   "devDependencies": {
     "@glennsl/rescript-json-combinators": "^1.5.1",

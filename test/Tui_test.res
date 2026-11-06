@@ -269,6 +269,37 @@ test("no rendered line ever exceeds the terminal width", () => {
   })
 })
 
+test("rendering session fields cannot inject terminal controls", () => {
+  let unsafe = {
+    ...baseSession,
+    title: "before\x1b[2Jafter",
+    path: "/tmp/\x1b]52;c;clipboard\x07session",
+    preview: "safe\x9b31m preview",
+  }
+  let state = mkState([unsafe])
+  let lines = Tui.view(state, ~metrics={width: 100, height: 30, nowMs: 0.})
+  lines->Array.forEach(line => {
+    equal(line->String.includes("\x1b[2J"), false)
+    equal(line->String.includes("\x1b]52"), false)
+    equal(line->String.includes("\x9b"), false)
+  })
+})
+
+test("wide titles fit terminal cells without splitting emoji", () => {
+  let wide = {...baseSession, title: "漢字漢字漢字", preview: "😀😀😀😀😀"}
+  let state = mkState([wide])
+  let lines = Tui.view(state, ~metrics={width: 20, height: 20, nowMs: 0.})
+  lines->Array.forEach(line => equal(Display.width(line) <= 20, true))
+  equal(lines->Array.some(line => line->String.includes("�")), false)
+})
+
+test("very narrow terminals omit the details box instead of wrapping it", () => {
+  let state = mkState([claudeSession])
+  let lines = Tui.view(state, ~metrics={width: 3, height: 30, nowMs: 0.})
+  equal(lines->Array.some(line => line->stripAll->String.startsWith("┌")), false)
+  lines->Array.forEach(line => equal(Display.width(line) <= 3, true))
+})
+
 test("the whole view always fits within the terminal height", () => {
   let state = mkState([claudeSession, codexSession, ampSession])
   let heights = [6, 8, 10, 12, 16, 20, 24, 40, 60]

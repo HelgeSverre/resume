@@ -66,10 +66,9 @@ let collectJunie = async (home, cache) => {
   if !indexExists {
     []
   } else {
-    let sessions = []
-    let rows = await AdapterUtil.readJsonl(indexPath)
+    let rows = await AdapterUtil.readIndex(indexPath)
 
-    let _ = await AdapterUtil.mapBounded(rows, async row => {
+    let sessions = await AdapterUtil.collectSome(~label="Junie session", rows, async row => {
       switch JsonUtil.stringAt(row, ["sessionId"]) {
       | Some(sessionId) =>
         let eventsPath = NodePath.joinMany([sessionsDir, sessionId, "events.jsonl"])
@@ -90,7 +89,7 @@ let collectJunie = async (home, cache) => {
         let updatedAt = JsonUtil.msAt(row, ["updatedAt"])
         let projectDir = JsonUtil.stringAt(row, ["projectDir"])
 
-        sessions->Array.push({
+        Some({
           Session.id: sessionId,
           tool: Junie,
           title: JsonUtil.compact(Some(taskName), ~fallback=sessionId),
@@ -100,7 +99,7 @@ let collectJunie = async (home, cache) => {
           path: eventsPath,
           preview: parsed.preview,
         })
-      | None => ()
+      | None => None
       }
     })
 
