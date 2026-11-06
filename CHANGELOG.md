@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.0
+
+- Include the progressive loading, session launch, compatibility, and performance improvements from `1.1.0-rc.1` below.
+- Fix Codex sessions showing and launching in their original worktree after moving to another directory.
+- Prevent out-of-order Codex records from moving activity timestamps backwards.
+- Refresh cached Codex metadata automatically after upgrading.
+- Validate npm trusted publishing and match the saved `resume.yaml` workflow configuration.
+
 ## 1.1.0-rc.1
 
 - Open the picker immediately and load sessions progressively with bounded async I/O.
