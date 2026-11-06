@@ -18,3 +18,7 @@ let joinMany = (parts: array<string>) => {
     }
   })
 }
+
+@module("node:path")
+external sep: string = "sep"
+let hasSegment = (path, segment) => path->String.split(sep)->Array.some(part => part == segment)

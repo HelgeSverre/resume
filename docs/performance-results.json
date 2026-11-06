@@ -1,0 +1,1256 @@
+{
+  "runtime": "Node.js v26.10.0",
+  "platform": "macOS arm64",
+  "scans": {
+    "runs": 6,
+    "results": [
+      {
+        "revision": "before",
+        "sessions": 5424,
+        "firstRun": {
+          "firstResultMs": 3.495459000000004,
+          "scanMs": 18729.73325,
+          "totalMs": 18746.021167000003,
+          "sessions": 5424,
+          "eventLoopMaxMs": 275.775487,
+          "adapters": [
+            {
+              "tool": "Kilo",
+              "count": 0,
+              "ms": 0.3163330000000002
+            },
+            {
+              "tool": "Hermes",
+              "count": 0,
+              "ms": 0.30195799999999906
+            },
+            {
+              "tool": "Devin",
+              "count": 2,
+              "ms": 2.5064160000000015
+            },
+            {
+              "tool": "Antigravity",
+              "count": 1,
+              "ms": 24.5985
+            },
+            {
+              "tool": "Junie",
+              "count": 18,
+              "ms": 138.293
+            },
+            {
+              "tool": "Vibe",
+              "count": 38,
+              "ms": 248.62362499999998
+            },
+            {
+              "tool": "Kimi",
+              "count": 105,
+              "ms": 483.00112499999994
+            },
+            {
+              "tool": "Gemini",
+              "count": 44,
+              "ms": 663.739542
+            },
+            {
+              "tool": "Pi",
+              "count": 138,
+              "ms": 804.260417
+            },
+            {
+              "tool": "Amp",
+              "count": 1667,
+              "ms": 4664.498709
+            },
+            {
+              "tool": "Codex",
+              "count": 655,
+              "ms": 4845.872291
+            },
+            {
+              "tool": "Copilot",
+              "count": 100,
+              "ms": 5136.148708000001
+            },
+            {
+              "tool": "OpenCode",
+              "count": 1189,
+              "ms": 9518.7545
+            },
+            {
+              "tool": "Claude",
+              "count": 1622,
+              "ms": 18729.429459
+            }
+          ]
+        },
+        "warmMedian": {
+          "firstResultMs": 16.420541999999998,
+          "scanMs": 821.691,
+          "totalMs": 839.221041,
+          "eventLoopMaxMs": 49.807359
+        },
+        "samples": [
+          {
+            "firstResultMs": 3.495459000000004,
+            "scanMs": 18729.73325,
+            "totalMs": 18746.021167000003,
+            "sessions": 5424,
+            "eventLoopMaxMs": 275.775487,
+            "adapters": [
+              {
+                "tool": "Kilo",
+                "count": 0,
+                "ms": 0.3163330000000002
+              },
+              {
+                "tool": "Hermes",
+                "count": 0,
+                "ms": 0.30195799999999906
+              },
+              {
+                "tool": "Devin",
+                "count": 2,
+                "ms": 2.5064160000000015
+              },
+              {
+                "tool": "Antigravity",
+                "count": 1,
+                "ms": 24.5985
+              },
+              {
+                "tool": "Junie",
+                "count": 18,
+                "ms": 138.293
+              },
+              {
+                "tool": "Vibe",
+                "count": 38,
+                "ms": 248.62362499999998
+              },
+              {
+                "tool": "Kimi",
+                "count": 105,
+                "ms": 483.00112499999994
+              },
+              {
+                "tool": "Gemini",
+                "count": 44,
+                "ms": 663.739542
+              },
+              {
+                "tool": "Pi",
+                "count": 138,
+                "ms": 804.260417
+              },
+              {
+                "tool": "Amp",
+                "count": 1667,
+                "ms": 4664.498709
+              },
+              {
+                "tool": "Codex",
+                "count": 655,
+                "ms": 4845.872291
+              },
+              {
+                "tool": "Copilot",
+                "count": 100,
+                "ms": 5136.148708000001
+              },
+              {
+                "tool": "OpenCode",
+                "count": 1189,
+                "ms": 9518.7545
+              },
+              {
+                "tool": "Claude",
+                "count": 1622,
+                "ms": 18729.429459
+              }
+            ]
+          },
+          {
+            "firstResultMs": 16.035,
+            "scanMs": 985.004792,
+            "totalMs": 1058.162084,
+            "sessions": 5424,
+            "eventLoopMaxMs": 49.807359,
+            "adapters": [
+              {
+                "tool": "Kilo",
+                "count": 0,
+                "ms": 1.3006250000000037
+              },
+              {
+                "tool": "Hermes",
+                "count": 0,
+                "ms": 1.290458000000001
+              },
+              {
+                "tool": "Devin",
+                "count": 2,
+                "ms": 2.7517500000000013
+              },
+              {
+                "tool": "Junie",
+                "count": 18,
+                "ms": 12.300334000000007
+              },
+              {
+                "tool": "Antigravity",
+                "count": 1,
+                "ms": 12.238458000000001
+              },
+              {
+                "tool": "Kimi",
+                "count": 105,
+                "ms": 42.967000000000006
+              },
+              {
+                "tool": "Vibe",
+                "count": 38,
+                "ms": 63.112125000000006
+              },
+              {
+                "tool": "Pi",
+                "count": 138,
+                "ms": 75.811208
+              },
+              {
+                "tool": "Gemini",
+                "count": 44,
+                "ms": 205.50787499999998
+              },
+              {
+                "tool": "Amp",
+                "count": 1667,
+                "ms": 207.153542
+              },
+              {
+                "tool": "Codex",
+                "count": 655,
+                "ms": 529.79075
+              },
+              {
+                "tool": "Copilot",
+                "count": 100,
+                "ms": 531.250666
+              },
+              {
+                "tool": "Claude",
+                "count": 1622,
+                "ms": 603.3665
+              },
+              {
+                "tool": "OpenCode",
+                "count": 1189,
+                "ms": 972.188666
+              }
+            ]
+          },
+          {
+            "firstResultMs": 17.429499999999997,
+            "scanMs": 792.3335420000001,
+            "totalMs": 810.0405830000001,
+            "sessions": 5424,
+            "eventLoopMaxMs": 49.512447,
+            "adapters": [
+              {
+                "tool": "Kilo",
+                "count": 0,
+                "ms": 1.8046249999999944
+              },
+              {
+                "tool": "Hermes",
+                "count": 0,
+                "ms": 1.7988339999999994
+              },
+              {
+                "tool": "Devin",
+                "count": 2,
+                "ms": 3.2342920000000035
+              },
+              {
+                "tool": "Junie",
+                "count": 18,
+                "ms": 14.201000000000008
+              },
+              {
+                "tool": "Antigravity",
+                "count": 1,
+                "ms": 14.216500000000003
+              },
+              {
+                "tool": "Kimi",
+                "count": 105,
+                "ms": 47.247667
+              },
+              {
+                "tool": "Vibe",
+                "count": 38,
+                "ms": 70.371625
+              },
+              {
+                "tool": "Pi",
+                "count": 138,
+                "ms": 82.47941700000001
+              },
+              {
+                "tool": "Gemini",
+                "count": 44,
+                "ms": 212.934792
+              },
+              {
+                "tool": "Amp",
+                "count": 1667,
+                "ms": 214.99812500000002
+              },
+              {
+                "tool": "Codex",
+                "count": 655,
+                "ms": 575.208084
+              },
+              {
+                "tool": "Copilot",
+                "count": 100,
+                "ms": 594.0538339999999
+              },
+              {
+                "tool": "Claude",
+                "count": 1622,
+                "ms": 771.045167
+              },
+              {
+                "tool": "OpenCode",
+                "count": 1189,
+                "ms": 778.537292
+              }
+            ]
+          },
+          {
+            "firstResultMs": 16.215916000000004,
+            "scanMs": 891.6380829999999,
+            "totalMs": 895.629333,
+            "sessions": 5424,
+            "eventLoopMaxMs": 113.246207,
+            "adapters": [
+              {
+                "tool": "Kilo",
+                "count": 0,
+                "ms": 1.3736669999999975
+              },
+              {
+                "tool": "Hermes",
+                "count": 0,
+                "ms": 1.3518749999999997
+              },
+              {
+                "tool": "Devin",
+                "count": 2,
+                "ms": 3.077708000000001
+              },
+              {
+                "tool": "Junie",
+                "count": 18,
+                "ms": 14.065583000000004
+              },
+              {
+                "tool": "Antigravity",
+                "count": 1,
+                "ms": 13.983999999999995
+              },
+              {
+                "tool": "Kimi",
+                "count": 105,
+                "ms": 47.020583
+              },
+              {
+                "tool": "Vibe",
+                "count": 38,
+                "ms": 68.15424999999999
+              },
+              {
+                "tool": "Pi",
+                "count": 138,
+                "ms": 84.308542
+              },
+              {
+                "tool": "Gemini",
+                "count": 44,
+                "ms": 218.486875
+              },
+              {
+                "tool": "Amp",
+                "count": 1667,
+                "ms": 220.579167
+              },
+              {
+                "tool": "Codex",
+                "count": 655,
+                "ms": 564.1395
+              },
+              {
+                "tool": "Copilot",
+                "count": 100,
+                "ms": 585.6843749999999
+              },
+              {
+                "tool": "OpenCode",
+                "count": 1189,
+                "ms": 878.253
+              },
+              {
+                "tool": "Claude",
+                "count": 1622,
+                "ms": 879.324917
+              }
+            ]
+          },
+          {
+            "firstResultMs": 17.142750000000003,
+            "scanMs": 821.691,
+            "totalMs": 839.221041,
+            "sessions": 5424,
+            "eventLoopMaxMs": 68.288511,
+            "adapters": [
+              {
+                "tool": "Kilo",
+                "count": 0,
+                "ms": 1.4924170000000032
+              },
+              {
+                "tool": "Hermes",
+                "count": 0,
+                "ms": 1.5257080000000016
+              },
+              {
+                "tool": "Devin",
+                "count": 2,
+                "ms": 3.7337500000000006
+              },
+              {
+                "tool": "Junie",
+                "count": 18,
+                "ms": 14.972417
+              },
+              {
+                "tool": "Antigravity",
+                "count": 1,
+                "ms": 14.925459000000004
+              },
+              {
+                "tool": "Kimi",
+                "count": 105,
+                "ms": 49.293041
+              },
+              {
+                "tool": "Vibe",
+                "count": 38,
+                "ms": 72.393209
+              },
+              {
+                "tool": "Pi",
+                "count": 138,
+                "ms": 84.397791
+              },
+              {
+                "tool": "Gemini",
+                "count": 44,
+                "ms": 206.490167
+              },
+              {
+                "tool": "Amp",
+                "count": 1667,
+                "ms": 209.075
+              },
+              {
+                "tool": "Codex",
+                "count": 655,
+                "ms": 554.4600419999999
+              },
+              {
+                "tool": "Copilot",
+                "count": 100,
+                "ms": 569.661542
+              },
+              {
+                "tool": "Claude",
+                "count": 1622,
+                "ms": 745.055834
+              },
+              {
+                "tool": "OpenCode",
+                "count": 1189,
+                "ms": 808.7654160000001
+              }
+            ]
+          },
+          {
+            "firstResultMs": 16.420541999999998,
+            "scanMs": 745.239417,
+            "totalMs": 761.243375,
+            "sessions": 5424,
+            "eventLoopMaxMs": 38.305791,
+            "adapters": [
+              {
+                "tool": "Kilo",
+                "count": 0,
+                "ms": 1.2401669999999996
+              },
+              {
+                "tool": "Hermes",
+                "count": 0,
+                "ms": 1.2260840000000002
+              },
+              {
+                "tool": "Devin",
+                "count": 2,
+                "ms": 2.686708000000003
+              },
+              {
+                "tool": "Junie",
+                "count": 18,
+                "ms": 12.114209000000002
+              },
+              {
+                "tool": "Antigravity",
+                "count": 1,
+                "ms": 12.045457999999996
+              },
+              {
+                "tool": "Kimi",
+                "count": 105,
+                "ms": 45.69712499999999
+              },
+              {
+                "tool": "Vibe",
+                "count": 38,
+                "ms": 65.69262499999999
+              },
+              {
+                "tool": "Pi",
+                "count": 138,
+                "ms": 79.455791
+              },
+              {
+                "tool": "Gemini",
+                "count": 44,
+                "ms": 197.857834
+              },
+              {
+                "tool": "Amp",
+                "count": 1667,
+                "ms": 199.81125
+              },
+              {
+                "tool": "Codex",
+                "count": 655,
+                "ms": 539.978917
+              },
+              {
+                "tool": "Copilot",
+                "count": 100,
+                "ms": 557.285375
+              },
+              {
+                "tool": "OpenCode",
+                "count": 1189,
+                "ms": 726.415625
+              },
+              {
+                "tool": "Claude",
+                "count": 1622,
+                "ms": 732.268916
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "revision": "after",
+        "sessions": 5888,
+        "firstRun": {
+          "firstResultMs": 12.031540999999997,
+          "scanMs": 18409.925791,
+          "totalMs": 18436.040166000003,
+          "sessions": 5888,
+          "eventLoopMaxMs": 291.241983,
+          "adapters": [
+            {
+              "tool": "Kilo",
+              "count": 0,
+              "ms": 0.24641600000000352
+            },
+            {
+              "tool": "Hermes",
+              "count": 0,
+              "ms": 0.23004099999999994
+            },
+            {
+              "tool": "Devin",
+              "count": 2,
+              "ms": 10.894666999999998
+            },
+            {
+              "tool": "Antigravity",
+              "count": 1,
+              "ms": 47.32066699999999
+            },
+            {
+              "tool": "Junie",
+              "count": 18,
+              "ms": 112.858375
+            },
+            {
+              "tool": "Pool",
+              "count": 35,
+              "ms": 170.79233399999998
+            },
+            {
+              "tool": "Vibe",
+              "count": 38,
+              "ms": 266.782125
+            },
+            {
+              "tool": "Kimi",
+              "count": 105,
+              "ms": 403.386042
+            },
+            {
+              "tool": "Gemini",
+              "count": 44,
+              "ms": 779.264542
+            },
+            {
+              "tool": "Pi",
+              "count": 138,
+              "ms": 822.792667
+            },
+            {
+              "tool": "OpenCode",
+              "count": 1473,
+              "ms": 3084.110542
+            },
+            {
+              "tool": "Amp",
+              "count": 1667,
+              "ms": 4758.383708
+            },
+            {
+              "tool": "Codex",
+              "count": 655,
+              "ms": 4911.980083
+            },
+            {
+              "tool": "Copilot",
+              "count": 100,
+              "ms": 5190.304958
+            },
+            {
+              "tool": "Claude",
+              "count": 1622,
+              "ms": 18409.52625
+            }
+          ]
+        },
+        "warmMedian": {
+          "firstResultMs": 35.524333,
+          "scanMs": 692.5755,
+          "totalMs": 720.841209,
+          "eventLoopMaxMs": 47.939583
+        },
+        "samples": [
+          {
+            "firstResultMs": 12.031540999999997,
+            "scanMs": 18409.925791,
+            "totalMs": 18436.040166000003,
+            "sessions": 5888,
+            "eventLoopMaxMs": 291.241983,
+            "adapters": [
+              {
+                "tool": "Kilo",
+                "count": 0,
+                "ms": 0.24641600000000352
+              },
+              {
+                "tool": "Hermes",
+                "count": 0,
+                "ms": 0.23004099999999994
+              },
+              {
+                "tool": "Devin",
+                "count": 2,
+                "ms": 10.894666999999998
+              },
+              {
+                "tool": "Antigravity",
+                "count": 1,
+                "ms": 47.32066699999999
+              },
+              {
+                "tool": "Junie",
+                "count": 18,
+                "ms": 112.858375
+              },
+              {
+                "tool": "Pool",
+                "count": 35,
+                "ms": 170.79233399999998
+              },
+              {
+                "tool": "Vibe",
+                "count": 38,
+                "ms": 266.782125
+              },
+              {
+                "tool": "Kimi",
+                "count": 105,
+                "ms": 403.386042
+              },
+              {
+                "tool": "Gemini",
+                "count": 44,
+                "ms": 779.264542
+              },
+              {
+                "tool": "Pi",
+                "count": 138,
+                "ms": 822.792667
+              },
+              {
+                "tool": "OpenCode",
+                "count": 1473,
+                "ms": 3084.110542
+              },
+              {
+                "tool": "Amp",
+                "count": 1667,
+                "ms": 4758.383708
+              },
+              {
+                "tool": "Codex",
+                "count": 655,
+                "ms": 4911.980083
+              },
+              {
+                "tool": "Copilot",
+                "count": 100,
+                "ms": 5190.304958
+              },
+              {
+                "tool": "Claude",
+                "count": 1622,
+                "ms": 18409.52625
+              }
+            ]
+          },
+          {
+            "firstResultMs": 36.7625,
+            "scanMs": 945.462625,
+            "totalMs": 972.227542,
+            "sessions": 5888,
+            "eventLoopMaxMs": 48.136191,
+            "adapters": [
+              {
+                "tool": "Kilo",
+                "count": 0,
+                "ms": 0.31962500000000205
+              },
+              {
+                "tool": "Hermes",
+                "count": 0,
+                "ms": 0.31150000000000944
+              },
+              {
+                "tool": "Devin",
+                "count": 2,
+                "ms": 11.554249999999996
+              },
+              {
+                "tool": "Junie",
+                "count": 18,
+                "ms": 13.73145799999999
+              },
+              {
+                "tool": "Pool",
+                "count": 35,
+                "ms": 20.502542000000005
+              },
+              {
+                "tool": "Antigravity",
+                "count": 1,
+                "ms": 36.327084
+              },
+              {
+                "tool": "Kimi",
+                "count": 105,
+                "ms": 64.8585
+              },
+              {
+                "tool": "Vibe",
+                "count": 38,
+                "ms": 85.65062499999999
+              },
+              {
+                "tool": "Pi",
+                "count": 138,
+                "ms": 100.657541
+              },
+              {
+                "tool": "Gemini",
+                "count": 44,
+                "ms": 244.668916
+              },
+              {
+                "tool": "Amp",
+                "count": 1667,
+                "ms": 271.085625
+              },
+              {
+                "tool": "Copilot",
+                "count": 100,
+                "ms": 630.557042
+              },
+              {
+                "tool": "Codex",
+                "count": 655,
+                "ms": 673.891459
+              },
+              {
+                "tool": "Claude",
+                "count": 1622,
+                "ms": 732.5398339999999
+              },
+              {
+                "tool": "OpenCode",
+                "count": 1473,
+                "ms": 920.719958
+              }
+            ]
+          },
+          {
+            "firstResultMs": 34.648709000000004,
+            "scanMs": 698.683542,
+            "totalMs": 727.413584,
+            "sessions": 5888,
+            "eventLoopMaxMs": 47.939583,
+            "adapters": [
+              {
+                "tool": "Kilo",
+                "count": 0,
+                "ms": 0.4105830000000026
+              },
+              {
+                "tool": "Hermes",
+                "count": 0,
+                "ms": 0.40441700000000225
+              },
+              {
+                "tool": "Devin",
+                "count": 2,
+                "ms": 11.02525
+              },
+              {
+                "tool": "Junie",
+                "count": 18,
+                "ms": 12.83475
+              },
+              {
+                "tool": "Pool",
+                "count": 35,
+                "ms": 18.178708999999998
+              },
+              {
+                "tool": "Antigravity",
+                "count": 1,
+                "ms": 33.765791
+              },
+              {
+                "tool": "Kimi",
+                "count": 105,
+                "ms": 57.553
+              },
+              {
+                "tool": "Vibe",
+                "count": 38,
+                "ms": 80.728375
+              },
+              {
+                "tool": "Pi",
+                "count": 138,
+                "ms": 100.22716699999998
+              },
+              {
+                "tool": "Gemini",
+                "count": 44,
+                "ms": 243.35645799999998
+              },
+              {
+                "tool": "Amp",
+                "count": 1667,
+                "ms": 268.118083
+              },
+              {
+                "tool": "OpenCode",
+                "count": 1473,
+                "ms": 315.719959
+              },
+              {
+                "tool": "Codex",
+                "count": 655,
+                "ms": 581.01575
+              },
+              {
+                "tool": "Copilot",
+                "count": 100,
+                "ms": 587.998917
+              },
+              {
+                "tool": "Claude",
+                "count": 1622,
+                "ms": 675.7545839999999
+              }
+            ]
+          },
+          {
+            "firstResultMs": 33.248958,
+            "scanMs": 668.43025,
+            "totalMs": 672.07125,
+            "sessions": 5888,
+            "eventLoopMaxMs": 47.218687,
+            "adapters": [
+              {
+                "tool": "Kilo",
+                "count": 0,
+                "ms": 0.40904199999999946
+              },
+              {
+                "tool": "Hermes",
+                "count": 0,
+                "ms": 0.39858300000000213
+              },
+              {
+                "tool": "Devin",
+                "count": 2,
+                "ms": 10.732916000000003
+              },
+              {
+                "tool": "Junie",
+                "count": 18,
+                "ms": 12.234457999999997
+              },
+              {
+                "tool": "Pool",
+                "count": 35,
+                "ms": 17.683083000000003
+              },
+              {
+                "tool": "Antigravity",
+                "count": 1,
+                "ms": 28.951084
+              },
+              {
+                "tool": "Kimi",
+                "count": 105,
+                "ms": 55.921791
+              },
+              {
+                "tool": "Vibe",
+                "count": 38,
+                "ms": 76.01425
+              },
+              {
+                "tool": "Pi",
+                "count": 138,
+                "ms": 98.406958
+              },
+              {
+                "tool": "Gemini",
+                "count": 44,
+                "ms": 232.56179200000003
+              },
+              {
+                "tool": "Amp",
+                "count": 1667,
+                "ms": 258.288958
+              },
+              {
+                "tool": "OpenCode",
+                "count": 1473,
+                "ms": 310.559416
+              },
+              {
+                "tool": "Codex",
+                "count": 655,
+                "ms": 572.903375
+              },
+              {
+                "tool": "Copilot",
+                "count": 100,
+                "ms": 573.166708
+              },
+              {
+                "tool": "Claude",
+                "count": 1622,
+                "ms": 646.630042
+              }
+            ]
+          },
+          {
+            "firstResultMs": 35.524333,
+            "scanMs": 677.875542,
+            "totalMs": 704.047417,
+            "sessions": 5888,
+            "eventLoopMaxMs": 46.891007,
+            "adapters": [
+              {
+                "tool": "Kilo",
+                "count": 0,
+                "ms": 0.4023329999999987
+              },
+              {
+                "tool": "Hermes",
+                "count": 0,
+                "ms": 0.39358400000000415
+              },
+              {
+                "tool": "Devin",
+                "count": 2,
+                "ms": 10.440000000000005
+              },
+              {
+                "tool": "Junie",
+                "count": 18,
+                "ms": 12.528249999999993
+              },
+              {
+                "tool": "Pool",
+                "count": 35,
+                "ms": 17.690083
+              },
+              {
+                "tool": "Antigravity",
+                "count": 1,
+                "ms": 29.017542
+              },
+              {
+                "tool": "Kimi",
+                "count": 105,
+                "ms": 57.73633400000001
+              },
+              {
+                "tool": "Vibe",
+                "count": 38,
+                "ms": 78.827541
+              },
+              {
+                "tool": "Pi",
+                "count": 138,
+                "ms": 101.623833
+              },
+              {
+                "tool": "Gemini",
+                "count": 44,
+                "ms": 233.27254200000002
+              },
+              {
+                "tool": "Amp",
+                "count": 1667,
+                "ms": 256.484041
+              },
+              {
+                "tool": "OpenCode",
+                "count": 1473,
+                "ms": 474.96449999999993
+              },
+              {
+                "tool": "Codex",
+                "count": 655,
+                "ms": 566.1985
+              },
+              {
+                "tool": "Copilot",
+                "count": 100,
+                "ms": 571.317792
+              },
+              {
+                "tool": "Claude",
+                "count": 1622,
+                "ms": 653.5214579999999
+              }
+            ]
+          },
+          {
+            "firstResultMs": 36.419209,
+            "scanMs": 692.5755,
+            "totalMs": 720.841209,
+            "sessions": 5888,
+            "eventLoopMaxMs": 50.593791,
+            "adapters": [
+              {
+                "tool": "Kilo",
+                "count": 0,
+                "ms": 0.4052909999999983
+              },
+              {
+                "tool": "Hermes",
+                "count": 0,
+                "ms": 0.40050000000000097
+              },
+              {
+                "tool": "Devin",
+                "count": 2,
+                "ms": 11.797875000000005
+              },
+              {
+                "tool": "Junie",
+                "count": 18,
+                "ms": 14.69550000000001
+              },
+              {
+                "tool": "Pool",
+                "count": 35,
+                "ms": 20.301833000000002
+              },
+              {
+                "tool": "Antigravity",
+                "count": 1,
+                "ms": 38.73587499999999
+              },
+              {
+                "tool": "Kimi",
+                "count": 105,
+                "ms": 60.78399999999999
+              },
+              {
+                "tool": "Vibe",
+                "count": 38,
+                "ms": 81.36891599999998
+              },
+              {
+                "tool": "Pi",
+                "count": 138,
+                "ms": 104.581084
+              },
+              {
+                "tool": "Gemini",
+                "count": 44,
+                "ms": 239.3305
+              },
+              {
+                "tool": "Amp",
+                "count": 1667,
+                "ms": 263.394666
+              },
+              {
+                "tool": "OpenCode",
+                "count": 1473,
+                "ms": 312.23029099999997
+              },
+              {
+                "tool": "Codex",
+                "count": 655,
+                "ms": 574.8315
+              },
+              {
+                "tool": "Copilot",
+                "count": 100,
+                "ms": 582.978125
+              },
+              {
+                "tool": "Claude",
+                "count": 1622,
+                "ms": 668.711834
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "terminal": {
+    "cold": {
+      "before": {
+        "firstFrameMs": 18642.8,
+        "firstSessionMs": 18642.8,
+        "readyMs": 18642.8
+      },
+      "after": {
+        "firstFrameMs": 115.5,
+        "firstSessionMs": 138.5,
+        "readyMs": 18975.0
+      }
+    },
+    "samples": {
+      "before": [
+        {
+          "firstFrameMs": 1452.6,
+          "firstSessionMs": 1452.6,
+          "readyMs": 1452.6
+        },
+        {
+          "firstFrameMs": 905.1,
+          "firstSessionMs": 905.1,
+          "readyMs": 905.1
+        },
+        {
+          "firstFrameMs": 1053.3,
+          "firstSessionMs": 1053.3,
+          "readyMs": 1053.3
+        },
+        {
+          "firstFrameMs": 1052.1,
+          "firstSessionMs": 1052.1,
+          "readyMs": 1052.1
+        },
+        {
+          "firstFrameMs": 1072.6,
+          "firstSessionMs": 1072.6,
+          "readyMs": 1072.6
+        }
+      ],
+      "after": [
+        {
+          "firstFrameMs": 73.4,
+          "firstSessionMs": 114.1,
+          "readyMs": 882.4
+        },
+        {
+          "firstFrameMs": 79.4,
+          "firstSessionMs": 120.0,
+          "readyMs": 853.4
+        },
+        {
+          "firstFrameMs": 84.3,
+          "firstSessionMs": 127.1,
+          "readyMs": 877.9
+        },
+        {
+          "firstFrameMs": 84.2,
+          "firstSessionMs": 146.8,
+          "readyMs": 993.5
+        },
+        {
+          "firstFrameMs": 77.6,
+          "firstSessionMs": 117.3,
+          "readyMs": 876.6
+        }
+      ]
+    },
+    "median": {
+      "before": {
+        "firstFrameMs": 1053.3,
+        "firstSessionMs": 1053.3,
+        "readyMs": 1053.3
+      },
+      "after": {
+        "firstFrameMs": 79.4,
+        "firstSessionMs": 120.0,
+        "readyMs": 877.9
+      }
+    }
+  }
+}

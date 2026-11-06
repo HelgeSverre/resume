@@ -5,10 +5,12 @@ let collectKilo = async home => {
   if !(await NodeFs.exists(path)) {
     []
   } else {
-    NodeSqlite.query(
-      path,
-      "SELECT s.id, s.title, s.directory, s.time_updated AS updated, " ++
-      "(SELECT COUNT(*) FROM message m WHERE m.session_id = s.id) AS messageCount " ++ "FROM session s",
+    (
+      await NodeSqlite.query(
+        path,
+        "SELECT s.id, s.title, s.directory, s.time_updated AS updated, " ++
+        "(SELECT COUNT(*) FROM message m WHERE m.session_id = s.id) AS messageCount " ++ "FROM session s",
+      )
     )->Array.filterMap(row =>
       switch JsonUtil.stringAt(row, ["id"]) {
       | None => None
@@ -32,11 +34,13 @@ let collectHermes = async home => {
   if !(await NodeFs.exists(path)) {
     []
   } else {
-    NodeSqlite.query(
-      path,
-      "SELECT id, title, display_name, cwd, message_count, " ++
-      "COALESCE(last_activity_at, ended_at, started_at) AS updated, " ++
-      "last_activity_description AS preview FROM sessions " ++ "WHERE source = 'cli' AND COALESCE(hidden, 0) = 0",
+    (
+      await NodeSqlite.query(
+        path,
+        "SELECT id, title, display_name, cwd, message_count, " ++
+        "COALESCE(last_activity_at, ended_at, started_at) AS updated, " ++
+        "last_activity_description AS preview FROM sessions " ++ "WHERE source = 'cli' AND COALESCE(hidden, 0) = 0",
+      )
     )->Array.filterMap(row =>
       switch JsonUtil.stringAt(row, ["id"]) {
       | None => None
@@ -62,10 +66,12 @@ let collectDevin = async home => {
   if !(await NodeFs.exists(path)) {
     []
   } else {
-    NodeSqlite.query(
-      path,
-      "SELECT s.id, s.title, s.working_directory, s.last_activity_at, s.created_at, " ++
-      "(SELECT COUNT(*) FROM message_nodes m WHERE m.session_id = s.id) AS message_count " ++ "FROM sessions s WHERE COALESCE(s.hidden, 0) = 0",
+    (
+      await NodeSqlite.query(
+        path,
+        "SELECT s.id, s.title, s.working_directory, s.last_activity_at, s.created_at, " ++
+        "(SELECT COUNT(*) FROM message_nodes m WHERE m.session_id = s.id) AS message_count " ++ "FROM sessions s WHERE COALESCE(s.hidden, 0) = 0",
+      )
     )->Array.filterMap(row =>
       switch JsonUtil.stringAt(row, ["id"]) {
       | None => None

@@ -26,3 +26,15 @@ external on: (string, 'a => unit) => unit = "on"
 external homedir: unit => string = "homedir"
 @module("node:os")
 external tmpdir: unit => string = "tmpdir"
+
+@module("node:process")
+external stderr: 'stream = "stderr"
+@module("node:process")
+external pid: int = "pid"
+@val @scope("process")
+external removeListener: (string, 'a => unit) => unit = "removeListener"
+
+@get external fd: 'stream => int = "fd"
+// Node passes null on a successful write, unlike ReScript's undefined option.
+let writeAsync: ('stream, string) => promise<unit> = %raw(`(stream, text) =>
+  new Promise((resolve, reject) => stream.write(text, error => error ? reject(error) : resolve()))`)

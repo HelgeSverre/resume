@@ -1,8 +1,39 @@
 // Typed JSON utilities for JSONL parsing.
 
 // Cheap substring prefilter to avoid parsing every line; callers parse matches.
+let fieldPatterns: Dict.t<RegExp.t> = Dict.make()
 let hasJsonField = (line, key, value) => {
-  line->String.includes(`"${key}":"${value}"`) || line->String.includes(`"${key}": "${value}"`)
+  let token = key ++ ":" ++ value
+  let expression = switch fieldPatterns->Dict.get(token) {
+  | Some(expression) => expression
+  | None =>
+    let escape: string => string = %raw(`value => Array.from(value, c =>
+      [46,42,43,63,94,36,123,125,40,41,124,91,93,92].includes(c.codePointAt(0))
+        ? String.fromCharCode(92) + c : c).join("")`)
+    let expression = RegExp.fromString(
+      "\"" ++ escape(key) ++ "\"\\s*:\\s*\"" ++ escape(value) ++ "\"",
+    )
+    fieldPatterns->Dict.set(token, expression)
+    expression
+  }
+  RegExp.test(expression, line)
+}
+
+// Small value helpers shared by streamed adapters and metadata merging.
+let parse = text =>
+  try {Some(JSON.parseOrThrow(text))} catch {
+  | _ => None
+  }
+let nonEmpty = value => value->String.trim == "" ? None : Some(value)
+@send external codeUnitAt: (string, int) => int = "charCodeAt"
+let preview = text => {
+  if text->String.length <= 16000 {
+    text
+  } else {
+    // Do not leave half of an emoji/surrogate in a fixed-size cached preview.
+    let last = codeUnitAt(text, 15999)
+    text->String.slice(~start=0, ~end=last >= 0xd800 && last <= 0xdbff ? 15999 : 16000)
+  }
 }
 
 // Declarative decoders (json-combinators), used to replace deep

@@ -19,7 +19,7 @@ let usage = `resume
 Usage:
   resume              Open searchable session picker
   resume --json       Print normalized sessions as JSON
-  resume --copy <id>  Copy the resume command for a matching session id
+  resume --copy <id>  Copy/print a unique id or prefix (optionally tool:id)
   resume --help       Show this help
   resume --version    Print the version and exit
 
@@ -31,6 +31,7 @@ Keys:
   ctrl-t              Toggle exact timestamp column
   ctrl-u              Clear the search
   enter               Copy resume command to clipboard, print it, and exit
+  alt+enter / ctrl-r  Close picker and run selected session
   esc or ctrl-c       Exit
 `
 

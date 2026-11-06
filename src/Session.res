@@ -13,6 +13,7 @@ type tool =
   | Kilo
   | Hermes
   | Devin
+  | Pool
 
 type t = {
   id: string,
@@ -55,25 +56,14 @@ let toolToString = tool =>
   | Vibe => "Vibe"
   | Kilo => "Kilo"
   | Hermes => "Hermes"
+  | Pool => "Poolside"
   | Devin => "Devin"
   }
 
 let toolName = tool =>
   switch tool {
-  | Claude => "claude"
-  | Codex => "codex"
-  | Junie => "junie"
-  | Pi => "pi"
-  | Amp => "amp"
-  | OpenCode => "opencode"
-  | Kimi => "kimi"
-  | Copilot => "copilot"
-  | Antigravity => "antigravity"
-  | Gemini => "gemini"
-  | Vibe => "vibe"
-  | Kilo => "kilo"
-  | Hermes => "hermes"
-  | Devin => "devin"
+  | Pool => "pool"
+  | other => toolToString(other)->toLowerCase
   }
 
 let toolFromName = name =>
@@ -91,6 +81,7 @@ let toolFromName = name =>
   | "vibe" => Some(Vibe)
   | "kilo" => Some(Kilo)
   | "hermes" => Some(Hermes)
+  | "pool" => Some(Pool)
   | "devin" => Some(Devin)
   | _ => None
   }
@@ -103,27 +94,35 @@ let shellQuote = value => {
   }
 }
 
-let resumeCommand = session => {
-  let id = shellQuote(session.id)
-  switch session.tool {
-  | Claude => "claude --resume " ++ id
-  | Codex => "codex resume " ++ id
-  | Junie => "junie --resume --session-id " ++ id
-  | Pi => "pi --session " ++ id
-  | Amp => "amp threads continue " ++ id
-  | OpenCode => "opencode --session " ++ id
-  | Kimi => "kimi --session " ++ id
-  | Copilot => "copilot --resume " ++ id
-  | Antigravity => "agy --conversation " ++ id
-  | Gemini => "gemini --session-file " ++ shellQuote(session.path)
-  | Vibe => "vibe --resume " ++ id
-  | Kilo => "kilo --session " ++ id
-  | Hermes => "hermes --resume " ++ id
-  | Devin => "devin --resume " ++ id
+type launchSpec = {executable: string, args: array<string>, cwd: option<string>}
+
+let launchSpec = (session: t): launchSpec => {
+  let (executable, args) = switch session.tool {
+  | Claude => ("claude", ["--resume", session.id])
+  | Codex => ("codex", ["resume", session.id])
+  | Junie => ("junie", ["--resume", "--session-id", session.id])
+  | Pi => ("pi", ["--session", session.id])
+  | Amp => ("amp", ["threads", "continue", session.id])
+  | OpenCode => ("opencode", ["--session", session.id])
+  | Kimi => ("kimi", ["--session", session.id])
+  | Copilot => ("copilot", ["--resume", session.id])
+  | Antigravity => ("agy", ["--conversation", session.id])
+  | Gemini => ("gemini", ["--session-file", session.path])
+  | Vibe => ("vibe", ["--resume", session.id])
+  | Kilo => ("kilo", ["--session", session.id])
+  | Hermes => ("hermes", ["--resume", session.id])
+  | Pool => ("pool", ["--resume", session.id])
+  | Devin => ("devin", ["--resume", session.id])
   }
+  {executable, args, cwd: session.cwd}
 }
 
-let copyCommand = session =>
+let resumeCommand = (session: t) => {
+  let spec = launchSpec(session)
+  Array.concat([shellQuote(spec.executable)], spec.args->Array.map(shellQuote))->Array.join(" ")
+}
+
+let copyCommand = (session: t) =>
   switch session.cwd {
   | Some(cwd) => "cd " ++ shellQuote(cwd) ++ " && " ++ resumeCommand(session)
   | None => resumeCommand(session)

@@ -3,7 +3,7 @@
 #   render: vhs demo/resume.tape
 #
 # The hidden setup block points HOME at a freshly generated tree of synthetic
-# sessions (demo/make-fixtures.mjs) so the demo shows several supported tools
+# sessions (lib/es6/demo/MakeFixtures.mjs) so the demo shows several supported tools
 # without touching any real session history.
 #
 # The interactive picker leads (it's the star), and the CLI flags follow.
@@ -35,7 +35,7 @@ Type 'shopt -s expand_aliases; alias resume="node $PWD/dist/resume.mjs"'
 Enter
 Type 'export HOME="$PWD/demo/home"'
 Enter
-Type 'node demo/make-fixtures.mjs "$HOME"'
+Type 'node lib/es6/demo/MakeFixtures.mjs "$HOME"'
 Enter
 Type 'clear'
 Enter

@@ -1,0 +1,53 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == 'HelgeSverre/resume'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Require a release from main
+        run: git merge-base --is-ancestor HEAD origin/main
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - name: Install npm with trusted-publishing support
+        run: npm install --global npm@11
+      - run: npm install
+      - run: npm test
+      - name: Validate release tag and choose distribution tag
+        id: release
+        run: node lib/es6/scripts/Release.mjs
+      - name: Pack the tested release
+        run: npm pack --pack-destination "$RUNNER_TEMP"
+      - name: Smoke-test the packaged CLI outside the checkout
+        env:
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          mkdir "$RUNNER_TEMP/smoke"
+          cd "$RUNNER_TEMP/smoke"
+          npm install "$RUNNER_TEMP/helgesverre-resume-$RELEASE_VERSION.tgz"
+          test "$(./node_modules/.bin/resume --version)" = "$RELEASE_VERSION"
+          ./node_modules/.bin/resume --help
+      - name: Publish using npm trusted publishing
+        env:
+          RELEASE_VERSION: ${{ steps.release.outputs.version }}
+          RELEASE_DIST_TAG: ${{ steps.release.outputs.dist-tag }}
+        run: npm publish "$RUNNER_TEMP/helgesverre-resume-$RELEASE_VERSION.tgz" --access public --tag "$RELEASE_DIST_TAG"

@@ -26,28 +26,38 @@ let readVersion = async () => {
   }
 }
 
-let findSession = (sessions, id) => {
-  switch sessions->Array.find(session => session.id == id) {
-  | Some(session) => Some(session)
-  | None => sessions->Array.find(session => session.id->String.startsWith(id))
-  }
-}
-
 let loadSessions = async () =>
   SessionList.mergeAndSort(
     await Adapters.collectSessionsFromHome(env->Dict.get("HOME")->Option.getOr(homedir())),
   )
+
+let tsvField = value =>
+  value
+  ->String.replaceAll("\\", "\\\\")
+  ->String.replaceAll("\t", "\\t")
+  ->String.replaceAll("\r", "\\r")
+  ->String.replaceAll("\n", "\\n")
 
 let printTsv = sessions =>
   sessions
   ->Array.slice(~start=0, ~end=50)
   ->Array.forEach(session => {
     Console.log(
-      `${session.tool->Session.toolName}\t${session.id}\t${session.title}\t${Session.copyCommand(
-          session,
-        )}`,
+      [Session.toolName(session.tool), session.id, session.title, Session.copyCommand(session)]
+      ->Array.map(tsvField)
+      ->Array.join("\t"),
     )
   })
+
+let writeOutput = text => stdout->writeAsync(text)
+
+let copyAndPrint = async session => {
+  let command = Session.copyCommand(session)
+  try {await copyToClipboard(command)} catch {
+  | _ => Console.error("Warning: clipboard unavailable; printing the resume command")
+  }
+  await writeOutput((stdout->isTTY ? Display.safe(command) : command) ++ "\n")
+}
 
 let main = async () => {
   let args = argv->Array.slice(~start=2, ~end=argv->Array.length)
@@ -62,21 +72,60 @@ let main = async () => {
     Console.log(JSON.stringify(JSON.Encode.array(sessions->Array.map(Session.encode))))
   | Parsed(Copy(id)) =>
     let sessions = await loadSessions()
-    switch findSession(sessions, id) {
-    | Some(session) =>
-      let command = Session.copyCommand(session)
-      await copyToClipboard(command)
-      Console.log(command)
-    | None =>
-      Console.error(`No session found matching ${id}`)
+    switch Selection.find(sessions, id) {
+    | Found(session) => await copyAndPrint(session)
+    | Ambiguous(matches) =>
+      Console.error("Ambiguous session id; use one of these tool-qualified IDs:")
+      matches->Array.forEach(session =>
+        Console.error(Display.clean(Session.toolName(session.tool) ++ ":" ++ session.id))
+      )
+      exit(2)
+    | Missing =>
+      Console.error("No session found matching " ++ Display.clean(id))
       exit(1)
     }
   | Parsed(Pick) =>
-    let sessions = await loadSessions()
-    if !(stdin->isTTY) || !(stdout->isTTY) {
-      printTsv(sessions)
+    if stdin->isTTY && (stdout->isTTY || stderr->isTTY) {
+      let output = stdout->isTTY ? stdout : stderr
+      let pendingScan = ref(None)
+      let action = await Tui.runPicker(
+        ~version=await readVersion(),
+        ~output,
+        ~loadSessions=onSessions => {
+          let pending = Adapters.collectSessionsFromHome(
+            ~onSessions,
+            env->Dict.get("HOME")->Option.getOr(homedir()),
+          )
+          pendingScan.contents = Some(pending)
+          pending
+        },
+      )
+      ScanControl.cancel()
+      await NodeSqlite.cancelAll()
+      switch pendingScan.contents {
+      | Some(pending) =>
+        let _ = await pending->Promise.catch(_ => Promise.resolve([]))
+      | None => ()
+      }
+      switch action {
+      | Cancel => exit(0)
+      | Copy(session) =>
+        await copyAndPrint(session)
+        exit(0)
+      | Run(session) =>
+        let outcome = await Launch.run(
+          Launch.plan(session),
+          ~inputFd=stdin->fd,
+          ~outputFd=output->fd,
+        )
+        switch outcome {
+        | Failed(message) => Console.error("Could not launch session: " ++ Display.clean(message))
+        | _ => ()
+        }
+        exit(Launch.exitCode(outcome))
+      }
     } else {
-      await Tui.runPicker(~copyToClipboard, ~version=await readVersion(), sessions)
+      printTsv(await loadSessions())
     }
   }
 }

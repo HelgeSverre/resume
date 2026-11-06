@@ -6,19 +6,8 @@ open NodeFs
 
 // Keep file reads bounded: a large history can otherwise load thousands of
 // multi-megabyte session files into memory at once.
-let mapBounded = async (items: array<'a>, fn: 'a => promise<'b>): array<'b> => {
-  let results = []
-  let size = 8
-  let offset = ref(0)
-  while offset.contents < items->Array.length {
-    let endIndex = min(offset.contents + size, items->Array.length)
-    let chunk = items->Array.slice(~start=offset.contents, ~end=endIndex)
-    let values = await promiseAll(chunk->Array.map(fn))
-    values->Array.forEach(value => results->Array.push(value))
-    offset.contents = endIndex
-  }
-  results
-}
+let mapBounded = (items, read) =>
+  AsyncPool.map(~shouldContinue=() => !ScanControl.cancelled(), items, read)
 
 let all = async promises => await promiseAll(promises)
 
@@ -29,10 +18,16 @@ let walkFiles = async (root, predicate) => {
   } else {
     let out = []
     let stack = [root]
-    while stack->Array.length > 0 {
+    while stack->Array.length > 0 && !ScanControl.cancelled() {
       switch stack->Array.pop {
       | Some(dir) =>
-        let entries = await readdirWithFileTypes(dir, {"withFileTypes": true})
+        let entries = try {
+          await readdirWithFileTypes(dir, {"withFileTypes": true})
+        } catch {
+        | _ =>
+          Diagnostics.warn("Warning: skipped an unreadable session directory")
+          []
+        }
         entries->Array.forEach(entry => {
           let path = NodePath.join(dir, entry->name)
           if entry->isDirectory {
@@ -48,52 +43,48 @@ let walkFiles = async (root, predicate) => {
   }
 }
 
-let collectCachedSessions = async (~root, ~matches, ~namespace, ~parse, cache) => {
-  let files = await walkFiles(root, matches)
+// All per-file/index collectors use this boundary so a single bad input
+// cannot discard the rest of that tool's sessions.
+let collectSome = async (~label, items, read) => {
   let skipped = ref(0)
-  let sessions = await mapBounded(files, async path => {
-    try {
-      Some(
-        await Cache.cachedValue(
-          cache,
-          ~namespace,
-          path,
-          ~encode=Session.encode,
-          ~decode=Session.decode,
-          parse,
-        ),
-      )
-    } catch {
-    | _ => {
-        skipped.contents = skipped.contents + 1
-        None
-      }
+  let sessions = await mapBounded(items, async item => {
+    try {await read(item)} catch {
+    | _ =>
+      skipped.contents = skipped.contents + 1
+      None
     }
   })
   if skipped.contents > 0 {
-    Console.error(
-      `Warning: skipped ${Int.toString(skipped.contents)} unreadable ${namespace} files`,
+    Diagnostics.warn(
+      "Warning: skipped " ++ Int.toString(skipped.contents) ++ " unreadable " ++ label ++ " files",
     )
   }
   sessions->Array.filterMap(session => session)
 }
 
+let collectCachedSessions = async (~root, ~matches, ~namespace, ~parse, cache) => {
+  let files = await walkFiles(root, matches)
+  await collectSome(~label=namespace, files, async path => Some(
+    await Cache.cachedValue(
+      cache,
+      ~namespace,
+      path,
+      ~encode=Session.encode,
+      ~decode=Session.decode,
+      parse,
+    ),
+  ))
+}
+
 let splitLines = text => text->String.split("\n")
 
-let readJsonl = async path => {
-  let rows = []
-  let lines = splitLines(await readFile(path, "utf8"))
-  lines->Array.forEach(line => {
-    if line->String.trim != "" {
-      try {
-        rows->Array.push(JSON.parseOrThrow(line))
-      } catch {
-      | _ => ()
-      }
-    }
-  })
-  rows
-}
+let readJsonl = JsonLines.read
+let readIndex = async path =>
+  try {await readJsonl(path)} catch {
+  | _ =>
+    Diagnostics.warn("Warning: could not read session index")
+    []
+  }
 
 let firstParsedLine = (lines, predicate) => {
   lines->Array.findMap(line => {

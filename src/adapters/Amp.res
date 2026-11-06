@@ -35,8 +35,16 @@ let parseAmpFile = async path => {
 
       let previewText =
         messages
-        ->Array.get(messages->Array.length - 1)
-        ->Option.mapOr("", msg => JsonUtil.textAt(msg, ["content"]))
+        ->Array.toReversed
+        ->Array.findMap(msg => {
+          let text = JsonUtil.textAt(msg, ["content"])
+          if isUserOrAssistant(msg) && text != "" {
+            Some(text)
+          } else {
+            None
+          }
+        })
+        ->Option.getOr("")
 
       let sentAt =
         messages
@@ -45,12 +53,12 @@ let parseAmpFile = async path => {
         ->Option.getOr(0.0)
 
       let preview = JsonUtil.compact(Some(previewText), ~fallback="")
-      let titleText = JsonUtil.compact(title, ~fallback="")
+      let titleText = JsonUtil.compact(title, ~fallback=preview == "" ? id : preview)
 
       Some({
         Session.id,
         tool: Amp,
-        title: titleText == "" ? preview : titleText,
+        title: titleText,
         messageCount: messages->Array.filter(isUserOrAssistant)->Array.length,
         updatedAtMs: Math.max(Math.max(sentAt, created), await AdapterUtil.fileMtimeMs(path)),
         cwd: JsonUtil.cwdFromFileUri(treeUri),
@@ -67,19 +75,15 @@ let collectAmp = async (home, cache) => {
     path => NodePath.basename(path, "")->String.startsWith("T-") && path->String.endsWith(".json"),
   )
 
-  let sessions = []
-  let _ = await AdapterUtil.mapBounded(files, async path => {
-    switch await Cache.cachedValue(
+  let sessions = await AdapterUtil.collectSome(~label="Amp thread", files, async path => {
+    await Cache.cachedValue(
       cache,
-      ~namespace="amp-thread-v1",
+      ~namespace="amp-thread-v2",
       path,
       ~encode=Session.encodeOption,
       ~decode=Session.decodeOption,
       parseAmpFile,
-    ) {
-    | Some(session) => sessions->Array.push(session)
-    | None => ()
-    }
+    )
   })
   sessions
 }

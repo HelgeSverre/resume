@@ -17,6 +17,7 @@ type key =
   | PageDown
   | Wheel(int)
   | Enter
+  | Execute
   | Escape
   | ClearQuery
   | ToggleTimestamp
@@ -30,7 +31,14 @@ type key =
 type outcome =
   | Continue
   | Submit(Session.t)
+  | RunSession(Session.t)
   | Exit
+
+// The effectful caller owns what happens after the terminal is restored.
+type action =
+  | Cancel
+  | Copy(Session.t)
+  | Run(Session.t)
 
 type metrics = {
   width: int,
@@ -42,7 +50,7 @@ type pickerState = {
   mutable sessions: array<Session.t>,
   version: string,
   // Distinct tools present in `sessions`, in canonical order; used by ctrl+a.
-  tools: array<Session.tool>,
+  mutable tools: array<Session.tool>,
   mutable query: string,
   mutable selected: int,
   mutable offset: int,
@@ -82,14 +90,27 @@ let intMin = (a, b) =>
     b
   }
 
-let useColor = () => {
+let defaultColorEnabled = () => {
   stdout->isTTY && env->Dict.get("NO_COLOR") == None && env->Dict.get("TERM") != Some("dumb")
 }
 
-let enterAltScreen = () => {
+// The picker can render to stderr when stdout is captured by command
+// substitution. The lifecycle owner selects the target stream before entering
+// the alternate screen and restores this process-global setting on cleanup.
+let colorEnabled = ref(defaultColorEnabled())
+let useColor = () => colorEnabled.contents
+let setColorOutput = output => {
+  let previous = colorEnabled.contents
+  colorEnabled.contents =
+    output->isTTY && env->Dict.get("NO_COLOR") == None && env->Dict.get("TERM") != Some("dumb")
+  previous
+}
+let restoreColorOutput = previous => colorEnabled.contents = previous
+
+let enterAltScreen = output => {
   // Switch to the alternate screen, hide the cursor, clear it once and home the
   // cursor. Subsequent frames overwrite in place to avoid flicker.
-  stdout->write(
+  output->write(
     esc ++
     "?1049h" ++
     esc ++
@@ -104,8 +125,8 @@ let enterAltScreen = () => {
   )
 }
 
-let leaveAltScreen = () => {
-  stdout->write(esc ++ "?1006l" ++ esc ++ "?1000l" ++ esc ++ "?25h" ++ esc ++ "?1049l")
+let leaveAltScreen = output => {
+  output->write(esc ++ "?1006l" ++ esc ++ "?1000l" ++ esc ++ "?25h" ++ esc ++ "?1049l")
 }
 
 let inverse = text => {
@@ -150,96 +171,31 @@ let toolColor = (tool, text) => {
   | Vibe => 214
   | Kilo => 141
   | Hermes => 220
+  | Pool => 141
   | Devin => 111
   }
   color(code, text)
 }
 
 let truncate = (value: option<string>, width) => {
-  let text = switch value {
-  | Some(v) => v->String.replaceRegExp(/\s+/g, " ")->String.trim
-  | None => ""
-  }
-  if width <= 0 {
-    ""
-  } else if width == 1 {
-    text == "" ? " " : "…"
-  } else if text->String.length > width {
-    text->String.slice(~start=0, ~end=width - 1) ++ "…"
-  } else {
-    text->String.padEnd(width, " ")
-  }
+  value->Option.getOr("")->Display.truncate(width)
 }
 
 // Clip plain text to a maximum width without padding (used for full-width lines
 // that are cleared to end-of-line by the renderer, so trailing pad is wasteful).
-let clip = (text, width) => {
-  if width <= 0 {
-    ""
-  } else if text->String.length <= width {
-    text
-  } else if width == 1 {
-    "…"
-  } else {
-    text->String.slice(~start=0, ~end=width - 1) ++ "…"
-  }
-}
+let clip = (text, width) => text->Display.clip(width)
 
 // Clip keeping the tail visible (used for the search query so the most recently
 // typed characters stay on screen).
-let clipTail = (text, width) => {
-  if width <= 0 {
-    ""
-  } else if text->String.length <= width {
-    text
-  } else if width == 1 {
-    "…"
-  } else {
-    "…" ++ text->String.slice(~start=text->String.length - (width - 1))
-  }
-}
+let clipTail = (text, width) => text->Display.clipTail(width)
 
-let wrap = (text, width, maxLines) => {
-  let words =
-    text
-    ->String.replaceRegExp(/\s+/g, " ")
-    ->String.trim
-    ->String.split(" ")
-    ->Array.filter(word => word != "")
-
-  let lines = []
-  let line = {value: ""}
-
-  words->Array.forEach(word => {
-    if lines->Array.length >= maxLines {
-      () // region already full; ignore remaining words
-    } else {
-      let next = if line.value == "" {
-        word
-      } else {
-        line.value ++ " " ++ word
-      }
-      if next->String.length > width && line.value != "" {
-        lines->Array.push(line.value)
-        line.value = word
-      } else {
-        line.value = next
-      }
-    }
-  })
-
-  if line.value != "" && lines->Array.length < maxLines {
-    lines->Array.push(line.value)
-  }
-
-  lines
-}
+let wrap = (text, width, maxLines) => Display.wrap(text, width, maxLines)
 
 // Render the details box for a session. `width` is the box's outer width;
 // `previewLines` is the number of wrapped preview rows (0 = a minimal box with
 // no preview, for short terminals).
 let renderDetailsLines = (session: Session.t, width, ~previewLines=2) => {
-  let innerWidth = intMax(8, width - 2)
+  let innerWidth = intMax(2, width - 2)
   let textWidth = innerWidth - 2
   let command = Session.copyCommand(session)
   let border = "─"->String.repeat(innerWidth)
@@ -254,14 +210,20 @@ let renderDetailsLines = (session: Session.t, width, ~previewLines=2) => {
     dim(head->String.slice(~start=labelLen, ~end=head->String.length))
 
   let commandLabel = "Command "
-  let commandLine =
+  let commandLine = if textWidth <= commandLabel->Display.width {
+    dim(truncate(Some(commandLabel), textWidth))
+  } else {
     dim(commandLabel) ++
-    color(71, truncate(Some(command), intMax(0, textWidth - commandLabel->String.length)))
+    color(71, truncate(Some(command), intMax(0, textWidth - commandLabel->Display.width)))
+  }
 
   let pathLabel = "Path "
-  let pathLine =
+  let pathLine = if textWidth <= pathLabel->Display.width {
+    dim(truncate(Some(pathLabel), textWidth))
+  } else {
     dim(pathLabel) ++
-    color(110, truncate(Some(session.path), intMax(0, textWidth - pathLabel->String.length)))
+    color(110, truncate(Some(session.path), intMax(0, textWidth - pathLabel->Display.width)))
+  }
 
   let out = [dim("┌" ++ border ++ "┐"), boxed(headLine), boxed(commandLine), boxed(pathLine)]
 
@@ -431,8 +393,24 @@ let keyOfEvent = (str, event: keyEvent) => {
   let ctrl = event.ctrl->Option.getOr(false)
   let meta = event.meta->Option.getOr(false)
   let name = event.name->Option.getOr("")
+  let sequence = event.sequence->Option.getOr(str)
+  // readline decodes Alt+Enter as meta+return. It leaves CSI-u variants
+  // undecoded, so accept only the explicit modified-Enter sequences; we do
+  // not enable a terminal keyboard protocol just to receive them.
+  let csiModifiedEnter =
+    [
+      esc ++ "13;2u",
+      esc ++ "13;3u",
+      esc ++ "13;4u",
+      esc ++ "13;5u",
+      esc ++ "13;6u",
+      esc ++ "13;7u",
+      esc ++ "13;8u",
+    ]->Array.some(candidate => candidate == sequence)
 
-  if (ctrl && name == "c") || name == "escape" {
+  if (meta && (name == "return" || name == "enter")) || ctrl && name == "r" || csiModifiedEnter {
+    Execute
+  } else if (ctrl && name == "c") || name == "escape" {
     Escape
   } else if name == "return" || name == "enter" {
     Enter
@@ -483,6 +461,11 @@ let update = (state: pickerState, key, ~visible: array<Session.t>, ~rowsHeight) 
   | Enter =>
     switch visible->Array.get(state.selected) {
     | Some(session) => Submit(session)
+    | None => Continue
+    }
+  | Execute =>
+    switch visible->Array.get(state.selected) {
+    | Some(session) => RunSession(session)
     | None => Continue
     }
   | Down =>
@@ -542,7 +525,8 @@ let update = (state: pickerState, key, ~visible: array<Session.t>, ~rowsHeight) 
 // Top branding line: the installed package version, then the active agent filter
 // and any transient notice.
 let brandingLine = (state: pickerState, ~width) => {
-  let version = "v" ++ state.version
+  let version = ("v" ++ state.version)->Display.clean
+  let notice = state.notice->Display.clean
   let agent = switch state.agentFilter {
   | None => dim("all agents")
   | Some(tool) => toolColor(tool, Session.toolName(tool))
@@ -554,12 +538,12 @@ let brandingLine = (state: pickerState, ~width) => {
     switch state.agentFilter {
     | None => "all agents"
     | Some(tool) => Session.toolName(tool)
-    } ++ (state.notice != "" ? "  " ++ state.notice : "")
-  if plain->String.length <= width {
+    } ++ (notice != "" ? "  " ++ notice : "")
+  if plain->Display.width <= width {
     color(brandPrimary, "resume ") ++
     color(brandVersion, version) ++
     dim("  ·  agent: ") ++
-    agent ++ (state.notice != "" ? "  " ++ dim(state.notice) : "")
+    agent ++ (notice != "" ? "  " ++ dim(notice) : "")
   } else {
     clip(color(brandPrimary, "resume ") ++ color(brandVersion, version), width)
   }
@@ -568,11 +552,16 @@ let brandingLine = (state: pickerState, ~width) => {
 // Search line: dim label, then either the query or a faint placeholder.
 let searchLine = (~query, ~width) => {
   let label = "Search: "
-  let avail = intMax(1, width - label->String.length)
-  if query == "" {
-    dim(label) ++ color(placeholderColor, clip("write to filter", avail))
+  let labelWidth = label->Display.width
+  if width <= labelWidth {
+    dim(clip(label, width))
   } else {
-    dim(label) ++ clipTail(query, avail)
+    let avail = width - labelWidth
+    if query == "" {
+      dim(label) ++ color(placeholderColor, clip("write to filter", avail))
+    } else {
+      dim(label) ++ clipTail(query, avail)
+    }
   }
 }
 
@@ -584,6 +573,7 @@ let legendText = text => color(legendTextColor, text)
 
 let legendItems = [
   ("enter", "resume session"),
+  ("alt+enter/^r", "run now"),
   ("↑/↓", "move"),
   ("tab", "expand"),
   ("^a", "cycle agent"),
@@ -593,6 +583,7 @@ let legendItems = [
 ]
 let legendTerse = [
   ("enter", "resume"),
+  ("alt+enter/^r", "run"),
   ("↑/↓", "move"),
   ("tab", "expand"),
   ("^a", "agent"),
@@ -600,12 +591,17 @@ let legendTerse = [
   ("^u", "clear"),
   ("esc", "quit"),
 ]
-let legendMinimal = [("↑/↓", "move"), ("enter", "resume"), ("^a", "agent"), ("esc", "quit")]
+let legendMinimal = [
+  ("↑/↓", "move"),
+  ("enter", "resume"),
+  ("alt+enter/^r", "run"),
+  ("esc", "quit"),
+]
 
 let legendLine = (~width) => {
   let build = (items, ~sep) => {
     let plain = items->Array.map(((k, t)) => k ++ " " ++ t)->Array.join(sep)
-    if plain->String.length <= width {
+    if plain->Display.width <= width {
       Some(
         items
         ->Array.map(((k, t)) => legendKey(k) ++ " " ++ legendText(t))
@@ -725,7 +721,7 @@ let viewWithVisible = (state: pickerState, ~metrics, visible) => {
   }
 
   // Details box, pinned above the footer (omitted on very short terminals).
-  if layout.detailsHeight > 0 {
+  if layout.detailsHeight > 0 && width >= 4 {
     out->Array.push("")
     switch visible->Array.get(selected) {
     | Some(session) =>
@@ -763,84 +759,113 @@ let wheelDelta = report => {
   }
 }
 
-// `copyToClipboard` is injected by the caller (Main owns the clipboardy FFI so
-// Tui stays free of that dependency and remains testable without a TTY).
-let runPicker = async (~copyToClipboard, ~version, sessions) => {
-  if sessions->Array.length == 0 {
-    Console.log("No resumable sessions found.")
-  } else {
-    let state = {
-      sessions: SessionList.mergeAndSort(sessions),
-      version,
-      tools: distinctTools(sessions),
-      query: "",
-      selected: 0,
-      offset: 0,
-      notice: "",
-      showExactTime: false,
-      expanded: false,
-      agentFilter: None,
+// Keep the highlighted conversation stable as newer groups reorder the list.
+let receiveSessions = (state: pickerState, sessions, ~visible) => {
+  let selected = visible->Array.get(state.selected)->Option.map(SessionList.key)
+  state.sessions = SessionList.mergeAndSort(Array.concat(state.sessions, sessions))
+  state.tools = distinctTools(state.sessions)
+  switch selected {
+  | Some(key) =>
+    let index = filteredFor(state)->Array.findIndex(session => SessionList.key(session) == key)
+    state.selected = intMax(0, index)
+  | None => ()
+  }
+}
+
+// The caller receives an action only after the terminal has been restored.
+let runPicker = async (~version, ~output=stdout, ~loadSessions) => {
+  let stdout = output
+  let previousColorOutput = setColorOutput(output)
+  let closed = ref(false)
+  let submitting = ref(false)
+  let warningCount = ref(0)
+  let previousWarningHandler = Diagnostics.handler.contents
+  let state = {
+    sessions: [],
+    version,
+    tools: [],
+    query: "",
+    selected: 0,
+    offset: 0,
+    notice: "Loading sessions…",
+    showExactTime: false,
+    expanded: false,
+    agentFilter: None,
+  }
+  let visible = {value: filteredFor(state)}
+
+  let input = stdin
+  let mouseReport = {value: None}
+  let renderTimer = {value: None}
+
+  let restored = {value: false}
+  let restore = () => {
+    if !restored.value {
+      restored.value = true
+      leaveAltScreen(output)
     }
-    let visible = {value: filteredFor(state)}
+  }
+  on("exit", restore)
+  let onInterrupt = () => {
+    restore()
+    exit(130)
+  }
+  on("SIGINT", onInterrupt)
 
-    let input = stdin
-    let mouseReport = {value: None}
-    let renderTimer = {value: None}
-
-    let restored = {value: false}
-    let restore = () => {
-      if !restored.value {
-        restored.value = true
-        leaveAltScreen()
-      }
+  let render = () => {
+    switch renderTimer.value {
+    | Some(timer) =>
+      cancel(timer)
+      renderTimer.value = None
+    | None => ()
     }
-    on("exit", restore)
-    on("SIGINT", () => {
-      restore()
-      exit(130)
-    })
+    let metrics = {width: stdout->columns, height: stdout->rows, nowMs: Date.now()}
+    let layout = layoutFor(~height=metrics.height, ~expanded=state.expanded)
+    clampScroll(state, ~visibleLen=visible.value->Array.length, ~rowsHeight=layout.rowsHeight)
+    // Build the whole frame and write it in one call. Each line is cleared to
+    // end-of-line and the area below is cleared, so we overwrite in place
+    // instead of blanking the screen first (which causes flicker).
+    let frame =
+      esc ++
+      "H" ++
+      viewWithVisible(state, ~metrics, visible.value)
+      ->Array.map(line => line ++ esc ++ "K")
+      ->Array.join("\n") ++
+      esc ++ "0J"
+    stdout->write(frame)
+  }
 
-    let render = () => {
-      switch renderTimer.value {
-      | Some(timer) =>
-        cancel(timer)
-        renderTimer.value = None
-      | None => ()
-      }
-      let metrics = {width: stdout->columns, height: stdout->rows, nowMs: Date.now()}
-      let layout = layoutFor(~height=metrics.height, ~expanded=state.expanded)
-      clampScroll(state, ~visibleLen=visible.value->Array.length, ~rowsHeight=layout.rowsHeight)
-      // Build the whole frame and write it in one call. Each line is cleared to
-      // end-of-line and the area below is cleared, so we overwrite in place
-      // instead of blanking the screen first (which causes flicker).
-      let frame =
-        esc ++
-        "H" ++
-        viewWithVisible(state, ~metrics, visible.value)
-        ->Array.map(line => line ++ esc ++ "K")
-        ->Array.join("\n") ++
-        esc ++ "0J"
-      stdout->write(frame)
+  let renderSoon = () =>
+    switch renderTimer.value {
+    | Some(_) => ()
+    | None => renderTimer.value = Some(schedule(() => {
+          renderTimer.value = None
+          render()
+        }, 16))
     }
 
-    let renderSoon = () =>
-      switch renderTimer.value {
-      | Some(_) => ()
-      | None => renderTimer.value = Some(schedule(() => {
-            renderTimer.value = None
-            render()
-          }, 16))
+  Diagnostics.handler.contents = Some(
+    message => {
+      warningCount.contents = warningCount.contents + 1
+      if !closed.contents {
+        state.notice = JsonUtil.compact(Some(message), ~fallback="Warning")
+        renderSoon()
       }
+    },
+  )
+  enterAltScreen(output)
+  NodeReadline.emitKeypressEvents(input)
+  NodeReadline.setRawMode(input, true)
+  NodeReadline.resume(input)
 
-    enterAltScreen()
-    NodeReadline.emitKeypressEvents(input)
-    NodeReadline.setRawMode(input, true)
-    NodeReadline.resume(input)
+  await Promise.make((resolve, _reject) => {
+    let onResize = () => render()
 
-    await Promise.make((resolve, _reject) => {
-      let onResize = () => render()
-
-      let rec cleanup = () => {
+    let rec cleanup = action => {
+      if !closed.contents {
+        closed.contents = true
+        Diagnostics.handler.contents = previousWarningHandler
+        restoreColorOutput(previousColorOutput)
         switch renderTimer.value {
         | Some(timer) => cancel(timer)
         | None => ()
@@ -849,41 +874,40 @@ let runPicker = async (~copyToClipboard, ~version, sessions) => {
         input->NodeReadline.removeListener("keypress", onKeypress)
         stdout->NodeReadline.removeListener("resize", onResize)
         restore()
+        NodeProcess.removeListener("exit", restore)
+        NodeProcess.removeListener("SIGINT", onInterrupt)
         NodeReadline.pause(input)
-        resolve()
+        resolve(action)
       }
+    }
 
-      and onKeypress = (str: string, event: keyEvent) => {
-        let sequence = event.sequence->Option.getOr(str)
-        if sequence == esc ++ "<" {
-          mouseReport.value = Some("")
-        } else {
-          switch mouseReport.value {
-          | Some(report) =>
-            let next = report ++ sequence
-            if (
-              next->String.endsWith("M") || next->String.endsWith("m") || next->String.length > 64
-            ) {
-              mouseReport.value = None
-              switch wheelDelta(next) {
-              | Some(delta) =>
-                let rowsHeight = layoutFor(
-                  ~height=stdout->rows,
-                  ~expanded=state.expanded,
-                ).rowsHeight
-                let _ = update(state, Wheel(delta), ~visible=visible.value, ~rowsHeight)
-                renderSoon()
-              | None => ()
-              }
-            } else {
-              mouseReport.value = Some(next)
+    and onKeypress = (str: string, event: keyEvent) => {
+      let sequence = event.sequence->Option.getOr(str)
+      if sequence == esc ++ "<" {
+        mouseReport.value = Some("")
+      } else {
+        switch mouseReport.value {
+        | Some(report) =>
+          let next = report ++ sequence
+          if next->String.endsWith("M") || next->String.endsWith("m") || next->String.length > 64 {
+            mouseReport.value = None
+            switch wheelDelta(next) {
+            | Some(delta) =>
+              let rowsHeight = layoutFor(~height=stdout->rows, ~expanded=state.expanded).rowsHeight
+              let _ = update(state, Wheel(delta), ~visible=visible.value, ~rowsHeight)
+              renderSoon()
+            | None => ()
             }
-          | None => handleKeypress(str, event)
+          } else {
+            mouseReport.value = Some(next)
           }
+        | None => handleKeypress(str, event)
         }
       }
+    }
 
-      and handleKeypress = (str: string, event: keyEvent) => {
+    and handleKeypress = (str: string, event: keyEvent) => {
+      if !submitting.contents {
         let layout = layoutFor(~height=stdout->rows, ~expanded=state.expanded)
         let priorQuery = state.query
         let priorFilter = state.agentFilter
@@ -893,21 +917,13 @@ let runPicker = async (~copyToClipboard, ~version, sessions) => {
           ~visible=visible.value,
           ~rowsHeight=layout.rowsHeight,
         ) {
-        | Exit => cleanup()
+        | Exit => cleanup(Cancel)
         | Submit(session) =>
-          let command = selectedCommandOutput(session)
-          // Copy to the clipboard so it can be pasted directly, then restore the
-          // screen and print for `eval "$(resume)"`. We await the copy before
-          // resolving so the process doesn't exit before the write settles.
-          // Clipboard failures (e.g. headless) are ignored.
-          copyToClipboard(command)
-          ->Promise.catch(_ => Promise.resolve())
-          ->Promise.then(() => {
-            cleanup()
-            Console.log(command)
-            Promise.resolve()
-          })
-          ->ignore
+          submitting.contents = true
+          cleanup(Copy(session))
+        | RunSession(session) =>
+          submitting.contents = true
+          cleanup(Run(session))
         | Continue =>
           if priorQuery != state.query || priorFilter != state.agentFilter {
             visible.value = filteredFor(state)
@@ -915,10 +931,43 @@ let runPicker = async (~copyToClipboard, ~version, sessions) => {
           render()
         }
       }
-
-      input->NodeReadline.on("keypress", onKeypress)
-      stdout->NodeReadline.on("resize", onResize)
-      render()
+    }
+    input->NodeReadline.on("keypress", onKeypress)
+    stdout->NodeReadline.on("resize", onResize)
+    render()
+    let receive = sessions => {
+      if !closed.contents {
+        receiveSessions(state, sessions, ~visible=visible.value)
+        visible.value = filteredFor(state)
+        renderSoon()
+      }
+    }
+    loadSessions(receive)
+    ->Promise.then(_ => {
+      if !closed.contents {
+        if state.sessions->Array.length == 0 {
+          cleanup(Cancel)
+          output->write("No resumable sessions found.\n")
+        } else {
+          state.notice =
+            Int.toString(state.sessions->Array.length) ++
+            " sessions · ready" ++ (
+              warningCount.contents > 0
+                ? " · " ++ Int.toString(warningCount.contents) ++ " warnings"
+                : ""
+            )
+          renderSoon()
+        }
+      }
+      Promise.resolve()
     })
-  }
+    ->Promise.catch(_ => {
+      if !closed.contents {
+        state.notice = "Session loading failed"
+        renderSoon()
+      }
+      Promise.resolve()
+    })
+    ->ignore
+  })
 }
