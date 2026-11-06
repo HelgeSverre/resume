@@ -48,12 +48,19 @@ let parseCodexFile = async path => {
   await JsonLines.forEach(path, json => {
     let timestamp = JsonUtil.msAt(json, ["timestamp"])
     if timestamp > 0.0 {
-      updatedAtMs.contents = timestamp
+      updatedAtMs.contents = Math.max(updatedAtMs.contents, timestamp)
     }
     switch JsonUtil.stringAt(json, ["type"]) {
     | Some("session_meta") if id.contents == None =>
       id.contents = JsonUtil.stringAt(json, ["payload", "id"])
       cwd.contents = JsonUtil.stringAt(json, ["payload", "cwd"])
+    | Some("turn_context") =>
+      // A resumed session can move between worktrees. session_meta retains its
+      // original directory; turn_context describes the current turn instead.
+      switch JsonUtil.stringAt(json, ["payload", "cwd"])->Option.flatMap(JsonUtil.nonEmpty) {
+      | Some(current) => cwd.contents = Some(current)
+      | None => ()
+      }
     | Some("response_item") =>
       switch JsonUtil.stringAt(json, ["payload", "role"]) {
       | Some("user") | Some("assistant") =>
@@ -113,7 +120,7 @@ let collectCodex = async (home, cache) => {
     try {
       let parsed = await Cache.cachedValue(
         cache,
-        ~namespace="codex-file-v2",
+        ~namespace="codex-file-v3",
         path,
         ~encode=encodeParsed,
         ~decode=decodeParsed,

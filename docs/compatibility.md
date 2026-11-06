@@ -3,6 +3,22 @@
 This document records the storage contracts `resume` relies on. It is a
 maintenance aid, not a user-facing catalogue of every coding agent.
 
+## Codex
+
+The rollout's first `session_meta` identifies the session and its original
+working directory. Resuming it in another project or worktree does not rewrite
+that header. The adapter therefore uses the latest nonempty `turn_context`
+`payload.cwd`, falling back to the header when there is no turn directory.
+That directory also determines where the resume command launches.
+
+Updated time is the maximum valid rollout timestamp or session-index update.
+It describes recorded activity, including reasoning, tools, and bookkeeping;
+it is not restricted to the last user message. An old session with an active
+background task can therefore appear near the top of the picker. Taking the
+maximum also prevents an out-of-order record from moving activity backwards.
+The Codex parsed-file cache uses `codex-file-v3` so older cached directories and
+timestamps are refreshed without requiring users to delete their cache.
+
 ## Pi
 
 Pi 1.4.0 is installed on the reference machine. Its sessions are JSONL files
