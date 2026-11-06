@@ -1,6 +1,6 @@
 {
   "name": "@helgesverre/resume",
-  "version": "1.1.0-rc.1",
+  "version": "1.1.0",
   "description": "Search and resume local coding-agent sessions across many tools from one searchable TUI.",
   "keywords": [
     "cli",
