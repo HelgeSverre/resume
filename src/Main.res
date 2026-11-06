@@ -44,7 +44,7 @@ let printTsv = sessions =>
   ->Array.forEach(session => {
     Console.log(
       [Session.toolName(session.tool), session.id, session.title, Session.copyCommand(session)]
-      ->Array.map(tsvField)
+      ->Array.map(value => tsvField(stdout->isTTY ? Display.safe(value) : value))
       ->Array.join("\t"),
     )
   })

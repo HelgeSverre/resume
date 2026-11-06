@@ -491,7 +491,9 @@ let update = (state: pickerState, key, ~visible: array<Session.t>, ~rowsHeight) 
     scroll()
     Continue
   | Backspace =>
-    state.query = state.query->String.slice(~start=0, ~end=state.query->String.length - 1)
+    let parts = Display.graphemes(state.query)
+    let _ = parts->Array.pop
+    state.query = parts->Array.join("")
     resetToTop()
     Continue
   | ClearQuery =>

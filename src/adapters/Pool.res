@@ -26,9 +26,9 @@ let collectPool = async (home, cache) =>
   await AdapterUtil.collectCachedSessions(
     ~root=NodePath.joinMany([home, "Library", "Application Support", "poolside", "acp"]),
     ~matches=path => path->String.endsWith(".json"),
-    // v1 accepted a filename fallback for a missing id. Refresh those entries
-    // so malformed summaries no longer produce non-resumable commands.
-    ~namespace="pool-acp-v2",
+    // Refresh summaries after fixing title truncation at surrogate boundaries.
+    // v2 also removed filename fallbacks for malformed/missing session IDs.
+    ~namespace="pool-acp-v3",
     ~parse=parsePoolFile,
     cache,
   )

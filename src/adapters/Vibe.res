@@ -37,7 +37,10 @@ let collectVibe = async home => {
           messageCount: count,
           updatedAtMs: Math.max(
             JsonUtil.msAt(meta, ["end_time"]),
-            await AdapterUtil.fileMtimeMs(metaPath),
+            Math.max(
+              await AdapterUtil.fileMtimeMs(metaPath),
+              await AdapterUtil.fileMtimeMs(messagesPath),
+            ),
           ),
           cwd: JsonUtil.stringAt(meta, ["environment", "working_directory"]),
           path: messagesPath,
