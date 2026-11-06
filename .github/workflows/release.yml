@@ -51,4 +51,3 @@ jobs:
           RELEASE_VERSION: ${{ steps.release.outputs.version }}
           RELEASE_DIST_TAG: ${{ steps.release.outputs.dist-tag }}
         run: npm publish "$RUNNER_TEMP/helgesverre-resume-$RELEASE_VERSION.tgz" --access public --tag "$RELEASE_DIST_TAG"
-
