@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.1.1
 
 - Preserve Claude's current folder when a later message omits it, and keep its activity timestamp monotonic.
 - Update Vibe activity times when only the message log changes.
