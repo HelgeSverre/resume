@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Preserve Claude's current folder when a later message omits it, and keep its activity timestamp monotonic.
+- Update Vibe activity times when only the message log changes.
+- Fix Unicode search deletion and title truncation.
+- Sanitize terminal-bound TSV fallback output and refresh affected cached metadata.
+
 ## 1.1.0
 
 - Include the progressive loading, session launch, compatibility, and performance improvements from `1.1.0-rc.1` below.

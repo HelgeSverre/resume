@@ -26,15 +26,18 @@ let parse = text =>
   }
 let nonEmpty = value => value->String.trim == "" ? None : Some(value)
 @send external codeUnitAt: (string, int) => int = "charCodeAt"
-let preview = text => {
-  if text->String.length <= 16000 {
+let prefix = (text, limit) => {
+  if limit <= 0 {
+    ""
+  } else if text->String.length <= limit {
     text
   } else {
-    // Do not leave half of an emoji/surrogate in a fixed-size cached preview.
-    let last = codeUnitAt(text, 15999)
-    text->String.slice(~start=0, ~end=last >= 0xd800 && last <= 0xdbff ? 15999 : 16000)
+    // Do not leave half of an emoji/surrogate in a truncated title or preview.
+    let last = codeUnitAt(text, limit - 1)
+    text->String.slice(~start=0, ~end=last >= 0xd800 && last <= 0xdbff ? limit - 1 : limit)
   }
 }
+let preview = text => prefix(text, 16000)
 
 // Declarative decoders (json-combinators), used to replace deep
 // `Option.flatMap(JSON.Decode.object)->Dict.get(...)` chains.
@@ -118,7 +121,7 @@ let compact = (text, ~fallback="Untitled session") => {
   if value->String.length == 0 {
     fallback
   } else if value->String.length > 140 {
-    value->String.slice(~start=0, ~end=137) ++ "..."
+    prefix(value, 137) ++ "..."
   } else {
     value
   }

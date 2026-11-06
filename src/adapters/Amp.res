@@ -78,7 +78,7 @@ let collectAmp = async (home, cache) => {
   let sessions = await AdapterUtil.collectSome(~label="Amp thread", files, async path => {
     await Cache.cachedValue(
       cache,
-      ~namespace="amp-thread-v2",
+      ~namespace="amp-thread-v3",
       path,
       ~encode=Session.encodeOption,
       ~decode=Session.decodeOption,

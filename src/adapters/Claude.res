@@ -12,7 +12,7 @@ let parseClaudeFile = async path => {
   await JsonLines.forEach(path, json => {
     let timestamp = JsonUtil.msAt(json, ["timestamp"])
     if timestamp > 0.0 {
-      updatedAtMs.contents = timestamp
+      updatedAtMs.contents = Math.max(updatedAtMs.contents, timestamp)
     }
     if id.contents == None {
       id.contents = JsonUtil.stringAt(json, ["sessionId"])
@@ -42,7 +42,10 @@ let parseClaudeFile = async path => {
       if !isMeta {
         messageCount.contents = messageCount.contents + 1
         preview.contents = JsonUtil.textAt(json, ["message", "content"])->JsonUtil.preview
-        lastMessageCwd.contents = JsonUtil.stringAt(json, ["cwd"])
+        switch JsonUtil.stringAt(json, ["cwd"])->Option.flatMap(JsonUtil.nonEmpty) {
+        | Some(cwd) => lastMessageCwd.contents = Some(cwd)
+        | None => ()
+        }
       }
     | _ => ()
     }
@@ -71,7 +74,7 @@ let collectClaude = async (home, cache) => {
   await AdapterUtil.collectCachedSessions(
     ~root=NodePath.joinMany([home, ".claude", "projects"]),
     ~matches=path => path->String.endsWith(".jsonl") && !NodePath.hasSegment(path, "subagents"),
-    ~namespace="claude-session-v3",
+    ~namespace="claude-session-v4",
     ~parse=parseClaudeFile,
     cache,
   )

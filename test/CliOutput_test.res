@@ -18,16 +18,23 @@ let fixtureHome = async (context, rows) => {
   home
 }
 
-let run = (home, args) =>
+let run = (home, args, ~terminal=false) =>
   runSync(
     execPath,
     Array.concat(
       [
         "--import",
         NodePath.joinMany([root(), "lib", "es6", "test", "fixtures", "ClipboardUnavailable.mjs"]),
-        NodePath.joinMany([root(), "dist", "resume.mjs"]),
       ],
-      args,
+      Array.concat(
+        terminal
+          ? [
+              "--import",
+              NodePath.joinMany([root(), "lib", "es6", "test", "fixtures", "TerminalOutput.mjs"]),
+            ]
+          : [],
+        Array.concat([NodePath.joinMany([root(), "dist", "resume.mjs"])], args),
+      ),
     ),
     {env: environment(~home), encoding: "utf8", timeout: 10000},
   )
@@ -44,6 +51,19 @@ test("copy prints a recoverable command when the clipboard is unavailable", asyn
   equal(result.stdout->String.trim, "cd '/fixture with spaces' && claude --resume fixture")
   ok(result.stderr->String.includes("clipboard unavailable"))
   equal(result.stderr->String.includes(" at "), false)
+})
+
+test("TSV fallback does not emit session terminal controls to a terminal", async context => {
+  let home = await fixtureHome(
+    context,
+    [json(`{"type":"user","sessionId":"fixture","message":{"content":"before\\u001b[2Jafter"}}`)],
+  )
+  let terminal = run(home, [], ~terminal=true)
+  equal(terminal.status, 0)
+  equal(terminal.stdout->String.includes("\u001b"), false)
+  ok(terminal.stdout->String.includes("beforeafter"))
+  // Redirected output retains the raw field for existing structured consumers.
+  ok(run(home, []).stdout->String.includes("\u001b"))
 })
 
 test("copy rejects ambiguous prefixes rather than choosing the newest", async context => {

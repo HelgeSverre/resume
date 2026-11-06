@@ -35,7 +35,7 @@ let collectCopilot = async (home, cache) => {
   await AdapterUtil.collectCachedSessions(
     ~root=NodePath.joinMany([home, ".copilot", "session-state"]),
     ~matches=path => NodePath.basename(path, "") == "events.jsonl",
-    ~namespace="copilot-session-v1",
+    ~namespace="copilot-session-v2",
     ~parse=parseCopilotFile,
     cache,
   )

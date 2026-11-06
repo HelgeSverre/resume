@@ -61,7 +61,7 @@ let collectPi = async (home, cache) => {
       ~agentDir=?env->Dict.get("PI_CODING_AGENT_DIR"),
     ),
     ~matches=path => path->String.endsWith(".jsonl"),
-    ~namespace="pi-session-v2",
+    ~namespace="pi-session-v3",
     ~parse=parsePiFile,
     cache,
   )
